@@ -1,5 +1,6 @@
 import { app, type BrowserWindow } from 'electron';
 import { execFile, execSync } from 'child_process';
+import { AgentClient } from './agentClient';
 
 function getGlobalShortcut() {
   try {
@@ -71,13 +72,26 @@ export class SecurityManager {
     if (this.isDevEnvironment() || isAdminSession || !locked) {
       this.stopRestrictedProcessKiller();
       this.unregisterGlobalShortcuts();
+      this.syncAgentPolicy(false);
       return;
     }
 
     if (locked) {
       this.startRestrictedProcessKiller();
       this.registerGlobalShortcuts();
+      this.syncAgentPolicy(true);
     }
+  }
+
+  /**
+   * Machine-wide kiosk policy lives with gc-agent (LocalSystem); the standard booth user that runs
+   * this client cannot write HKLM, so we request it instead of editing the registry here. Fails
+   * soft when the agent is absent (dev, unprovisioned booth): the lock screen still works.
+   */
+  private static syncAgentPolicy(lock: boolean): void {
+    if (process.platform !== 'win32') return;
+    const op = lock ? AgentClient.applyKioskPolicy() : AgentClient.clearKioskPolicy();
+    op.catch((err) => console.warn('[SECURITY] gc-agent policy sync gagal:', err?.message || err));
   }
 
   public static isSystemLocked(): boolean {
@@ -167,9 +181,10 @@ export class SecurityManager {
     delVal(REG_EXPLORER_PATH, 'NoRun');
   }
 
-  public static applyWindowsRegistryPolicies(_enable: boolean): void {
-    // Zero intrusive registry locking - always maintain clean system state
+  public static applyWindowsRegistryPolicies(enable: boolean): void {
+    // Drop any stale HKCU locks left by older builds or a crash; machine-wide policy is the agent's.
     this.purgeRegistryRestrictions();
+    this.syncAgentPolicy(enable);
   }
 
   /**

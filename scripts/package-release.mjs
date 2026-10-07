@@ -26,6 +26,9 @@ execSync('ping 127.0.0.1 -n 2 >nul', { shell: 'cmd.exe' });
 console.log('=== [1/4] COMPILING ELECTRON & WEB ASSETS ===');
 execSync('npm run build:all', { stdio: 'inherit', cwd: rootDir, env: buildEnv });
 
+console.log('\n=== [1.5/4] COMPILING gc-agent (LocalSystem helper) ===');
+execSync('npm run build:agent', { stdio: 'inherit', cwd: rootDir, env: buildEnv });
+
 console.log('\n=== [2/4] PACKAGING ELECTRON BASE BINARY (WITH NATIVE MODULES) ===');
 execSync('npx electron-builder --dir', { stdio: 'inherit', cwd: rootDir, env: buildEnv });
 
