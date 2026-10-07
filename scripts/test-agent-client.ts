@@ -1,6 +1,6 @@
 // Verifies the AgentClient <-> gc-agent line protocol: request framing, response parsing,
-// error propagation, and the no-agent timeout. Runs over a local Unix socket that mimics the
-// agent, so it needs neither Windows nor Electron. Register: npm run test:agent-client.
+// error propagation, and the no-agent timeout. Runs over a fake agent on a local named pipe, or a
+// Unix socket off Windows, so it needs no installed agent and no Electron. Register: npm run test:agent-client.
 import assert from 'node:assert/strict';
 import net from 'node:net';
 import os from 'node:os';
@@ -31,7 +31,10 @@ async function main() {
   let passed = 0;
   const pass = (msg: string) => { console.log(`  ✓ ${msg}`); passed++; };
 
-  const sockPath = path.join(os.tmpdir(), `gc-agent-test-${process.pid}.sock`);
+  // Windows is the real target: a named pipe, like the agent. The Unix socket only serves the Linux cloud VM.
+  const sockPath = process.platform === 'win32'
+    ? `\\\\.\\pipe\\gc-agent-test-${process.pid}`
+    : path.join(os.tmpdir(), `gc-agent-test-${process.pid}.sock`);
   try { fs.unlinkSync(sockPath); } catch {}
   process.env.GC_AGENT_PIPE = sockPath;
 

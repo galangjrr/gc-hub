@@ -51,6 +51,7 @@ GC Hub adalah billing warnet untuk Windows: satu aplikasi Electron dengan dua mo
 - Repo ini **public**. Jangan commit key, token, `.env`, database, sertifikat, atau `client-config.json`.
 - URL dan key Supabase diisi lewat halaman Pengaturan di server, bukan di kode.
 - DevTools dan menu bawaan Electron mati di luar mode dev. Jangan diaktifkan lagi.
+- `agent/` berjalan sebagai **LocalSystem**, dan pipe-nya bisa dibuka semua user lokal. Isi permintaan tidak boleh dipercaya: keputusan harus berdasar fakta yang dibaca dari sistem, misalnya path exe asli dari PID dan sesi proses, bukan nama yang dikirim pemanggil. Binary service hanya boleh jalan dari `Program Files`, jangan dari folder yang bisa ditulis user bilik. Proses yang diluncurkan sebagai user wajib memakai environment block milik user itu.
 - Jangan menyebut merek software billing lain, dan jangan memasukkan aset atau dokumen hasil analisis software pihak ketiga ke repo.
 
 ## 6. Git
@@ -68,4 +69,4 @@ npm run typecheck
 npm test            # suite lengkap, butuh Windows
 ```
 
-**Di sesi cloud Linux:** jalankan `npm run typecheck`, build Vite, dan test yang berjalan lewat `node` atau `tsx`, yaitu `test:billing`, `test:personal`, `test:lan-auth`, `test:transactions`, `test:booking:sql`, dan `test:booking:api`. Test yang lewat `scripts/run-electron-test.mjs` butuh Electron di Windows; lewati dan sebutkan di PR bahwa test itu belum dijalankan. Fitur khusus Windows, seperti DPAPI, registry, process guard, dan input injector, tidak bisa diverifikasi di cloud.
+**Di sesi cloud Linux:** jalankan `npm run typecheck`, build Vite, dan test yang berjalan lewat `node` atau `tsx`, yaitu `test:billing`, `test:personal`, `test:lan-auth`, `test:transactions`, `test:booking:sql`, dan `test:booking:api`. Test yang lewat `scripts/run-electron-test.mjs` dan `npm run test:agent` butuh Windows; lewati dan sebutkan di PR bahwa test itu belum dijalankan. Fitur khusus Windows, seperti DPAPI, registry, process guard, dan input injector, tidak bisa diverifikasi di cloud.

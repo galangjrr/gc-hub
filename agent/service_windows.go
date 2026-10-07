@@ -2,23 +2,28 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
+	"os"
+	"path/filepath"
+	"time"
 
+	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/eventlog"
 	"golang.org/x/sys/windows/svc/mgr"
 )
 
 // handler implements svc.Handler: it runs the pipe server and stops it on a control request.
-type handler struct{}
+type handler struct{ client string }
 
-func (handler) Execute(_ []string, r <-chan svc.ChangeRequest, s chan<- svc.Status) (bool, uint32) {
+func (h handler) Execute(_ []string, r <-chan svc.ChangeRequest, s chan<- svc.Status) (bool, uint32) {
 	const accepted = svc.AcceptStop | svc.AcceptShutdown
 	s <- svc.Status{State: svc.StartPending}
 
 	srv := newPipeServer()
 	go srv.serve()
-	wd := newWatchdog()
+	wd := newWatchdog(h.client)
 	go wd.run()
 	s <- svc.Status{State: svc.Running, Accepts: accepted}
 
@@ -45,10 +50,10 @@ func (handler) Execute(_ []string, r <-chan svc.ChangeRequest, s chan<- svc.Stat
 	return false, 0
 }
 
-func runService(debug bool) {
+func runService(debug bool, client string) {
 	if debug {
 		log.SetPrefix("[gc-agent] ")
-		go newWatchdog().run()
+		go newWatchdog(client).run()
 		srv := newPipeServer()
 		srv.serve() // blocks
 		return
@@ -57,32 +62,64 @@ func runService(debug bool) {
 	if elog, err := eventlog.Open(serviceName); err == nil {
 		defer elog.Close()
 	}
-	if err := svc.Run(serviceName, handler{}); err != nil {
+	if err := svc.Run(serviceName, handler{client: client}); err != nil {
 		log.Fatalf("service gagal berjalan: %v", err)
 	}
 }
 
+// installDir is where the service binary lives. A LocalSystem service must never run from a folder
+// the booth user can write to, or replacing the exe there would hand that user SYSTEM on the next
+// start. The client folder is often on a drive the booth user fully controls, so the agent copies
+// itself under Program Files, which only administrators can modify.
+func installDir() (string, error) {
+	pf, err := windows.KnownFolderPath(windows.FOLDERID_ProgramFiles, 0)
+	if err != nil {
+		return "", fmt.Errorf("gagal membaca folder Program Files: %w", err)
+	}
+	return filepath.Join(pf, "GC Hub Agent"), nil
+}
+
 func installService() error {
-	exe, err := exePath()
+	client := clientExePath()
+	if client == "" {
+		return fmt.Errorf("path client tidak diketahui")
+	}
+	if _, err := os.Stat(client); err != nil {
+		return fmt.Errorf("client %s tidak ditemukan: %w", client, err)
+	}
+	src, err := exePath()
 	if err != nil {
 		return err
 	}
+	dir, err := installDir()
+	if err != nil {
+		return err
+	}
+
 	m, err := mgr.Connect()
 	if err != nil {
 		return fmt.Errorf("gagal konek Service Control Manager (butuh admin): %w", err)
 	}
 	defer m.Disconnect()
 
-	if s, err := m.OpenService(serviceName); err == nil {
-		s.Close()
-		return fmt.Errorf("service %s sudah terpasang", serviceName)
+	// Reinstall over an existing service so a newer agent replaces the old one.
+	if err := removeService(m); err != nil {
+		return err
 	}
 
-	s, err := m.CreateService(serviceName, exe, mgr.Config{
+	dst := filepath.Join(dir, "gc-agent.exe")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("gagal membuat %s: %w", dir, err)
+	}
+	if err := copyFile(src, dst); err != nil {
+		return fmt.Errorf("gagal menyalin agent ke %s: %w", dst, err)
+	}
+
+	s, err := m.CreateService(serviceName, dst, mgr.Config{
 		DisplayName: serviceDesc,
 		Description: serviceDesc,
 		StartType:   mgr.StartAutomatic,
-	})
+	}, clientFlag+client)
 	if err != nil {
 		return fmt.Errorf("gagal membuat service: %w", err)
 	}
@@ -100,16 +137,51 @@ func uninstallService() error {
 		return fmt.Errorf("gagal konek Service Control Manager (butuh admin): %w", err)
 	}
 	defer m.Disconnect()
+	if err := removeService(m); err != nil {
+		return err
+	}
+	if dir, err := installDir(); err == nil {
+		_ = os.RemoveAll(dir)
+	}
+	return nil
+}
 
+// removeService stops the service, waits for it to exit so its exe is no longer locked, and
+// deletes it. A missing service is not an error, so revert and reinstall never fail on it.
+func removeService(m *mgr.Mgr) error {
 	s, err := m.OpenService(serviceName)
 	if err != nil {
-		return nil // already gone: uninstall is idempotent so revert never fails on a missing service
+		return nil
 	}
 	defer s.Close()
 	_, _ = s.Control(svc.Stop)
+	for deadline := time.Now().Add(15 * time.Second); time.Now().Before(deadline); {
+		st, err := s.Query()
+		if err != nil || st.State == svc.Stopped {
+			break
+		}
+		time.Sleep(300 * time.Millisecond)
+	}
 	if err := s.Delete(); err != nil {
 		return fmt.Errorf("gagal menghapus service: %w", err)
 	}
 	_ = eventlog.Remove(serviceName)
 	return nil
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		return err
+	}
+	return out.Close()
 }

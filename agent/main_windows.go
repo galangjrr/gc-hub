@@ -9,7 +9,8 @@
 //
 // Commands:
 //
-//	gc-agent install     install and start the service (run elevated, e.g. during 1-click setup)
+//	gc-agent install     copy itself to Program Files, install and start the service (run elevated,
+//	                     e.g. during 1-click setup); reinstalls over an existing service
 //	gc-agent uninstall   stop and remove the service
 //	gc-agent debug       run in the foreground for development
 //	(no args)            launched by the Service Control Manager
@@ -26,18 +27,26 @@ import (
 const serviceName = "GCHubAgent"
 const serviceDesc = "GC Hub Agent (booth kiosk policy helper)"
 
+// clientFlag carries the booth client exe path into the service. It is fixed at install time
+// (by the elevated provisioner) and stored in the service config, which only admins can change.
+const clientFlag = "--client="
+
 func main() {
+	client := ""
 	if len(os.Args) > 1 {
-		switch strings.ToLower(os.Args[1]) {
-		case "install":
+		arg := os.Args[1]
+		switch {
+		case strings.EqualFold(arg, "install"):
 			exit(installService())
-		case "uninstall":
+		case strings.EqualFold(arg, "uninstall"):
 			exit(uninstallService())
-		case "debug":
-			runService(true)
+		case strings.EqualFold(arg, "debug"):
+			runService(true, clientExePath())
 			return
+		case strings.HasPrefix(arg, clientFlag):
+			client = strings.TrimPrefix(arg, clientFlag)
 		default:
-			fmt.Fprintf(os.Stderr, "perintah tidak dikenal: %s\n", os.Args[1])
+			fmt.Fprintf(os.Stderr, "perintah tidak dikenal: %s\n", arg)
 			os.Exit(2)
 		}
 	}
@@ -50,7 +59,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "jalankan sebagai service, atau pakai 'gc-agent debug'")
 		os.Exit(1)
 	}
-	runService(false)
+	runService(false, client)
 }
 
 func exit(err error) {
