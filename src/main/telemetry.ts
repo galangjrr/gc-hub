@@ -136,8 +136,8 @@ export class TelemetryService {
     const ram = this.getRamMetrics();
     const disk = this.getDiskMetrics();
     const gpuName = this.getGpuName();
-    // Lets the cashier see a booth left out of kiosk mode; undefined when gc-agent is not installed
-    const kioskEnabled = await AgentClient.getKioskEnabled().catch(() => undefined);
+    // Lets the cashier see a booth left out of kiosk mode or allowlist; empty when gc-agent is not installed
+    const agent = await AgentClient.status().catch(() => ({ kioskEnabled: undefined, exePolicy: undefined }));
 
     return {
       pcId,
@@ -151,7 +151,8 @@ export class TelemetryService {
       gpuName,
       uptimeSeconds: Math.round(os.uptime()),
       activeApp,
-      kioskEnabled,
+      kioskEnabled: agent.kioskEnabled,
+      exeMode: agent.exePolicy?.mode,
       timestamp: Date.now()
     };
   }

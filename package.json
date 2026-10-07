@@ -6,7 +6,7 @@
   "type": "module",
   "main": "dist-electron/main/index.cjs",
   "scripts": {
-    "test": "npm run typecheck && npm run test:personal && npm run test:booking:sql && npm run test:booking:api && npm run test:lan-auth && npm run test:agent-client && npm run test:agent && npm run test:billing:comp && npm run test:member-billing && npm run test:offline && npm run test:password && npm run test:cloud-sync && npm run test:db && npm run test:server:ipc && npm run test:server:login && npm run test:client:kiosk && npm run test:client-config && npm run test:pos && npm run test:billing && npm run test:package-rules && npm run test:billing:rules && npm run test:pos:counter && npm run test:transactions && npm run test:workstations && npm run test:process-scan && npm run test:db:backup && npm run test:remote && npm run test:shift:voucher && npm run test:e2e && npm run test:smoke && npm run test:sim && npm run test:stress",
+    "test": "npm run typecheck && npm run test:personal && npm run test:booking:sql && npm run test:booking:api && npm run test:lan-auth && npm run test:exe-policy && npm run test:agent-client && npm run test:agent && npm run test:billing:comp && npm run test:member-billing && npm run test:offline && npm run test:password && npm run test:cloud-sync && npm run test:db && npm run test:server:ipc && npm run test:server:login && npm run test:client:kiosk && npm run test:client-config && npm run test:pos && npm run test:billing && npm run test:package-rules && npm run test:billing:rules && npm run test:pos:counter && npm run test:transactions && npm run test:workstations && npm run test:process-scan && npm run test:db:backup && npm run test:remote && npm run test:shift:voucher && npm run test:e2e && npm run test:smoke && npm run test:sim && npm run test:stress",
     "typecheck": "tsc -p tsconfig.json",
     "dev:server": "vite --config vite.server.config.ts",
     "dev:client": "vite --config vite.client.config.ts",
@@ -44,6 +44,7 @@
     "test:password": "node scripts/run-electron-test.mjs scripts/test-password-auth.ts",
     "test:lan-auth": "tsx scripts/test-lan-auth.ts",
     "test:agent-client": "tsx scripts/test-agent-client.ts",
+    "test:exe-policy": "tsx scripts/test-exe-policy.ts",
     "test:agent": "cd agent && go test -count=1 ./...",
     "test:transactions": "tsx scripts/test-transactions.ts",
     "test:workstations": "node scripts/run-electron-test.mjs scripts/test-workstations.ts",

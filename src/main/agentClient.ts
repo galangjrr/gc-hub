@@ -1,4 +1,5 @@
 import net from 'net';
+import type { ExePolicy } from '../shared/exePolicy';
 
 /**
  * Client to the gc-agent LocalSystem service (see agent/). The booth client UI runs as a standard
@@ -14,13 +15,6 @@ const PIPE_PATH = process.env.GC_AGENT_PIPE || '\\\\.\\pipe\\gc-hub-agent';
 const TIMEOUT_MS = 3000;
 // Commands that may re-apply the AppLocker allowlist run PowerShell inside the agent.
 const APPLOCKER_TIMEOUT_MS = 30000;
-
-// Matches ExePolicy in agent/applocker_windows.go. allowPaths take AppLocker path syntax, e.g.
-// %OSDRIVE%\Users\*\AppData\Local\Roblox\*.
-export interface ExePolicy {
-  mode: 'off' | 'audit' | 'enforce';
-  allowPaths: string[];
-}
 
 // Matches SecurityPolicyConfig in src/client/security/registryPolicy.ts and PolicyConfig in the agent.
 export interface KioskPolicy {
@@ -112,6 +106,12 @@ export const AgentClient = {
   /** Read the stored exe allowlist setting. Resolves undefined from an older agent. */
   async getExePolicy(): Promise<ExePolicy | undefined> {
     return (await sendCommand('ping')).exePolicy;
+  },
+
+  /** Kiosk switch and exe allowlist in one round trip, for telemetry. */
+  async status(): Promise<{ kioskEnabled?: boolean; exePolicy?: ExePolicy }> {
+    const res = await sendCommand('ping');
+    return { kioskEnabled: res.kioskEnabled, exePolicy: res.exePolicy };
   },
 
   /** Store and apply the exe allowlist. The agent validates the paths and lifts it while the kiosk is off. */

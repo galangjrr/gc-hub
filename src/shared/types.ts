@@ -1,4 +1,6 @@
-export type WorkstationState = 'offline' | 'idle' | 'in_use' | 'active_member' | 'active_guest' | 'locked' | 'unpaid' | 'suspended';
+import type { ExeMode } from './exePolicy';
+
+export type WorkstationState ='offline' | 'idle' | 'in_use' | 'active_member' | 'active_guest' | 'locked' | 'unpaid' | 'suspended';
 
 export interface PersonalRateConfig {
   id: string;
@@ -61,6 +63,8 @@ export interface Workstation {
   stackedPackages?: StackedPackageItem[];
   activeApp?: string;
   kioskEnabled?: boolean; // from client telemetry; undefined = gc-agent missing or no report yet
+  exeMode?: ExeMode;      // exe allowlist mode stored on the booth, from client telemetry
+  exeOverride?: ExeMode;  // per-PC mode set on the server; undefined = follows the default
   hasPendingOrder?: boolean;
   pendingOrderSummary?: string;
   isUnpaid?: boolean;

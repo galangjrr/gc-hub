@@ -574,6 +574,12 @@ export const ServerView: React.FC = () => {
         res?.success ? (enabled ? 'Mode Kiosk Dinyalakan' : 'Mode Kiosk Dimatikan') : 'Mode Kiosk Gagal',
         res?.success ? `Perintah dikirim ke ${pc.name}. Status di panel diperbarui begitu PC menjawab.` : res?.message || `Tidak dapat mengubah Mode Kiosk ${pc.name}.`
       );
+    } else if (action === 'exe_mode') {
+      const res = await api?.setPcExeMode?.(pc.name, payload ?? null);
+      triggerToast(
+        res?.success ? 'Allowlist Diubah' : 'Allowlist Gagal Diubah',
+        res?.success ? res?.message || `Setting dikirim ke ${pc.name}.` : res?.message || `Tidak dapat mengubah allowlist ${pc.name}.`
+      );
     } else if (action === 'wake_on_lan') {
       // Broadcast, not the PC's IP: a switched-off PC has no ARP entry, so a unicast never reaches it
       if (api?.wakeOnLan) {

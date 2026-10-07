@@ -6,10 +6,12 @@ import { PackagePricingView } from './PackagePricingView';
 import { ConfirmModal } from '../../shared/ui/ConfirmModal';
 import { rupiah } from './PcCard';
 import { cn } from '../../shared/ui/utils';
+import { ExePolicyEditor } from '../../shared/ui/ExePolicyEditor';
+import { parseAllowPaths, EXE_MODE_LABEL, type ExeMode, type ExePolicySettings } from '../../shared/exePolicy';
 
 // Settings page. Layout, tokens and the four UI states follow DESIGN.md sections 2 to 4.
 
-export type SettingsTab = 'tarif' | 'staff' | 'shift' | 'keamanan' | 'database' | 'cloud';
+export type SettingsTab = 'tarif' | 'staff' | 'shift' | 'keamanan' | 'aplikasi' | 'database' | 'cloud';
 
 interface SettingsViewProps {
   tab: SettingsTab;
@@ -34,6 +36,7 @@ const TABS: Array<{ id: SettingsTab; label: string }> = [
   { id: 'staff', label: 'Staf' },
   { id: 'shift', label: 'Shift' },
   { id: 'keamanan', label: 'Kunci LAN' },
+  { id: 'aplikasi', label: 'Allowlist Aplikasi' },
   { id: 'database', label: 'Backup' },
   { id: 'cloud', label: 'Cloud' },
 ];
@@ -352,6 +355,97 @@ const LanKeyTab: React.FC<{ isAdmin: boolean; onTriggerToast: SettingsViewProps[
   );
 };
 
+// ---------- Allowlist aplikasi ----------
+
+const ExeTab: React.FC<{ isAdmin: boolean; onTriggerToast: SettingsViewProps['onTriggerToast'] }> = ({ isAdmin, onTriggerToast }) => {
+  const [status, setStatus] = useState<'loading' | 'error' | 'ready'>('loading');
+  const [managed, setManaged] = useState(false);
+  const [mode, setMode] = useState<ExeMode>('off');
+  const [text, setText] = useState('');
+  const [overrides, setOverrides] = useState<Array<[string, ExeMode]>>([]);
+  const [busy, setBusy] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setStatus('loading');
+    try {
+      const s: ExePolicySettings | null = await api()?.getExePolicySettings?.();
+      setManaged(!!s);
+      setMode(s?.defaultMode ?? 'off');
+      setText((s?.allowPaths ?? []).join('\n'));
+      setOverrides(Object.entries(s?.overrides ?? {}).sort(([a], [b]) => a.localeCompare(b)));
+      setStatus('ready');
+    } catch {
+      setStatus('error');
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const { paths, errors } = parseAllowPaths(text);
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (errors.length) return;
+    setBusy(true);
+    const res = await api()?.saveExePolicySettings?.({ defaultMode: mode, allowPaths: paths }).catch(() => null);
+    setBusy(false);
+    if (!res || denied(res)) return setSaveError(res?.message || 'Gagal menyimpan allowlist.');
+    setSaveError(null);
+    setManaged(true);
+    setText(paths.join('\n'));
+    onTriggerToast('Allowlist Disimpan', 'Setting dikirim ke semua PC yang tersambung.');
+  };
+
+  return (
+    <Panel
+      title="Allowlist aplikasi"
+      description="Batasi exe yang boleh dibuka user bilik lewat AppLocker. Mulai dari Catat saja di satu PC lewat inspektor PC, cek log-nya, baru pakai Blokir."
+    >
+      {status === 'loading' ? <SkeletonRows rows={4} />
+        : status === 'error' ? <ErrorLine message="Setting allowlist gagal dibaca dari database." onRetry={load} />
+        : (
+          <form onSubmit={save} className="space-y-4 max-w-2xl">
+            {!managed && (
+              <p role="status" className="px-3 py-2 rounded-sm border border-hairline bg-surface-3 text-[13px] text-text-secondary">
+                Belum diatur dari server. Tiap PC memakai setting dari panel admin bilik masing-masing. Setelah disimpan di sini, semua PC ikut setting server.
+              </p>
+            )}
+            <ExePolicyEditor
+              idPrefix="server-exe"
+              modeLabel="Mode default semua PC"
+              mode={mode}
+              onModeChange={setMode}
+              pathsText={text}
+              onPathsTextChange={setText}
+              errors={errors}
+              disabled={!isAdmin}
+            />
+            {overrides.length > 0 && (
+              <div>
+                <p className="mb-1 text-[12px] font-medium text-text-secondary">PC dengan mode sendiri</p>
+                <ul className="flex flex-wrap gap-1.5">
+                  {overrides.map(([pc, m]) => (
+                    <li key={pc} className="px-2 h-6 inline-flex items-center rounded-[2px] bg-surface-3 text-[11px] font-mono text-text-secondary">
+                      {pc}: {EXE_MODE_LABEL[m]}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1 text-[12px] text-text-muted">Ubah atau kembalikan ke default dari inspektor PC.</p>
+              </div>
+            )}
+            {saveError && <p role="alert" className="text-[12px] text-error">{saveError}</p>}
+            {isAdmin && (
+              <button type="submit" disabled={busy || errors.length > 0} className={BTN_PRIMARY}>
+                {busy ? 'Menyimpan...' : 'Simpan dan Kirim ke PC'}
+              </button>
+            )}
+          </form>
+        )}
+    </Panel>
+  );
+};
+
 // ---------- Backup ----------
 
 interface BackupFile { name: string; sizeBytes: number; createdAt: number; kind: 'harian' | 'manual' }
@@ -548,7 +642,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     document.getElementById(`settings-tab-${next.id}`)?.focus();
   };
 
-  const adminOnly = tab === 'staff' || tab === 'database' || tab === 'cloud';
+  const adminOnly = tab === 'staff' || tab === 'aplikasi' || tab === 'database' || tab === 'cloud';
 
   return (
     <div className="flex-1 flex flex-col h-full min-h-0 bg-surface-1 text-text-primary overflow-hidden">
@@ -605,6 +699,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               />
             )}
             {tab === 'keamanan' && <LanKeyTab isAdmin={isAdmin} onTriggerToast={onTriggerToast} />}
+            {tab === 'aplikasi' && <ExeTab isAdmin={isAdmin} onTriggerToast={onTriggerToast} />}
             {tab === 'database' && <BackupTab isAdmin={isAdmin} onTriggerToast={onTriggerToast} />}
             {tab === 'cloud' && <CloudTab isAdmin={isAdmin} onTriggerToast={onTriggerToast} />}
           </div>
