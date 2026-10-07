@@ -40,8 +40,9 @@ async function main() {
     if (req.cmd === 'apply-policy') return { id: req.id, ok: true, applied: ['DisableTaskMgr', 'NoRun'] };
     if (req.cmd === 'clear-policy') return { id: req.id, ok: true, applied: [] };
     if (req.cmd === 'kill-process') return { id: req.id, ok: true };
-    if (req.cmd === 'ping') return { id: req.id, ok: true, kioskEnabled: false };
+    if (req.cmd === 'ping') return { id: req.id, ok: true, kioskEnabled: false, exePolicy: { mode: 'audit', allowPaths: ['D:\\Steam\\*'] } };
     if (req.cmd === 'set-kiosk') return { id: req.id, ok: true, kioskEnabled: req.enabled };
+    if (req.cmd === 'set-exe-policy') return { id: req.id, ok: true, exePolicy: req.exePolicy };
     return { id: req.id, ok: false, error: 'perintah tidak dikenal' };
   });
 
@@ -82,6 +83,15 @@ async function main() {
   assert.equal(lastReq.enabled, true, 'switch forwards enabled as a boolean');
   assert.equal(kioskRes.kioskEnabled, true, 'switch returns the new state');
   pass('kiosk switch framing');
+
+  // 3c. exe allowlist: ping carries the stored setting, set-exe-policy forwards it whole
+  assert.deepEqual(await AgentClient.getExePolicy(), { mode: 'audit', allowPaths: ['D:\\Steam\\*'] }, 'ping reports the exe policy');
+  const exe = { mode: 'enforce' as const, allowPaths: ['%OSDRIVE%\\Users\\*\\AppData\\Local\\Roblox\\*'] };
+  const exeRes = await AgentClient.setExePolicy(exe);
+  assert.equal(lastReq.cmd, 'set-exe-policy', 'allowlist sends the set-exe-policy command');
+  assert.deepEqual(lastReq.exePolicy, exe, 'allowlist forwards mode and paths unchanged');
+  assert.deepEqual(exeRes.exePolicy, exe, 'allowlist returns the stored setting');
+  pass('exe allowlist framing');
 
   // 4. an agent error (ok:false) rejects rather than resolving silently
   const errServer = server;

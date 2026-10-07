@@ -67,15 +67,15 @@ func clearPolicy() error {
 // watchdog stops relaunching the client. It lives under HKLM so it survives reboots and only
 // SYSTEM or an administrator can write it directly. A missing or unreadable value means on, so a
 // fresh install is locked and a damaged value never unlocks the booth by accident.
-var kioskRoot = registry.LOCAL_MACHINE
+var agentRoot = registry.LOCAL_MACHINE
 
 const (
-	kioskKey   = `SOFTWARE\GC Hub Agent`
+	agentKey   = `SOFTWARE\GC Hub Agent`
 	kioskValue = "KioskDisabled"
 )
 
 func kioskEnabled() bool {
-	k, err := registry.OpenKey(kioskRoot, kioskKey, registry.QUERY_VALUE)
+	k, err := registry.OpenKey(agentRoot, agentKey, registry.QUERY_VALUE)
 	if err != nil {
 		return true
 	}
@@ -85,7 +85,7 @@ func kioskEnabled() bool {
 }
 
 func setKioskEnabled(on bool) error {
-	if err := setOrDeleteDword(kioskRoot, kioskKey, kioskValue, !on); err != nil {
+	if err := setOrDeleteDword(agentRoot, agentKey, kioskValue, !on); err != nil {
 		return err
 	}
 	if on {
