@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SystemLogRecord } from '../../shared/types';
 import { RotateCw, Eraser, Search, ChevronLeft, ChevronRight, Server, Monitor } from 'lucide-react';
-import { INPUT, BTN_GHOST, TH, TD } from './settingsUi';
+import { INPUT, BTN_GHOST, TH, TD } from '../../shared/ui/primitives';
 import { cn } from '../../shared/ui/utils';
 
 interface LogViewProps {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Workstation } from '../../../shared/types';
-import { Modal, BTN_PRIMARY, BTN_SECONDARY } from '../settingsUi';
+import { Modal, BTN_PRIMARY, BTN_SECONDARY } from '../../../shared/ui/primitives';
 import { rupiah } from '../PcCard';
 import { durationText } from '../PackagePricingView';
 

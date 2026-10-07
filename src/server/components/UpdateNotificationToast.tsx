@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshCw, X } from 'lucide-react';
-import { BTN_PRIMARY, BTN_SECONDARY, FOCUS } from './settingsUi';
+import { BTN_PRIMARY, BTN_SECONDARY, FOCUS } from '../../shared/ui/primitives';
 import { cn } from '../../shared/ui/utils';
 
 type Status = 'idle' | 'available' | 'downloading' | 'downloaded' | 'error';

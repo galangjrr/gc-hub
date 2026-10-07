@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Send } from 'lucide-react';
-import { Modal, Field, INPUT, BTN_PRIMARY, BTN_SECONDARY, FOCUS } from '../settingsUi';
+import { Modal, Field, INPUT, BTN_PRIMARY, BTN_SECONDARY, FOCUS } from '../../../shared/ui/primitives';
 import { cn } from '../../../shared/ui/utils';
 
 type Priority = 'normal' | 'warning' | 'urgent';

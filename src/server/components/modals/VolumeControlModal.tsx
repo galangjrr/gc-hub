@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Workstation } from '../../../shared/types';
 import { Volume2, VolumeX, ChevronUp, ChevronDown } from 'lucide-react';
-import { Modal, BTN_PRIMARY, BTN_SECONDARY } from '../settingsUi';
+import { Modal, BTN_PRIMARY, BTN_SECONDARY } from '../../../shared/ui/primitives';
 
 interface VolumeControlModalProps {
   isOpen: boolean;

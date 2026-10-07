@@ -1,6 +1,6 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
 import { RotateCcw } from 'lucide-react';
-import { BTN_PRIMARY, BTN_SECONDARY } from './settingsUi';
+import { BTN_PRIMARY, BTN_SECONDARY } from './primitives';
 
 interface Props {
   children: ReactNode;

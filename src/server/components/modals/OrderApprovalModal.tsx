@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Workstation, OrderRecord, OrderItemDetail } from '../../../shared/types';
-import { Modal, INPUT, BTN_PRIMARY, BTN_SECONDARY, FOCUS, TH, TD } from '../settingsUi';
+import { Modal, INPUT, BTN_PRIMARY, BTN_SECONDARY, FOCUS, TH, TD } from '../../../shared/ui/primitives';
 import { rupiah } from '../PcCard';
 
 // F&B order from a booth: paid up front, in cash or from the member's balance (see project payments note).

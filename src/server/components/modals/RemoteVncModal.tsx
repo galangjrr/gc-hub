@@ -5,8 +5,8 @@ import {
   MousePointer, Eye, Send, Maximize2, Minimize2,
 } from 'lucide-react';
 import { OpCode } from '../../../shared/protocol';
-import { ConfirmModal } from './ConfirmModal';
-import { BTN_GHOST, FOCUS, INPUT } from '../settingsUi';
+import { ConfirmModal } from '../../../shared/ui/ConfirmModal';
+import { BTN_GHOST, FOCUS, INPUT } from '../../../shared/ui/primitives';
 import { isCaptureFor, ScreenCaptureUpdate } from './ScreenshotViewerModal';
 import { cn } from '../../../shared/ui/utils';
 

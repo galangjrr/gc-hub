@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { X, RotateCcw } from 'lucide-react';
-import { cn } from '../../shared/ui/utils';
+import { cn } from './utils';
 
 // Building blocks for server pages (Pengaturan, Tarif, Transaksi, Laporan), per DESIGN.md sections 2 to 4.
 

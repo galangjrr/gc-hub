@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { CalendarClock, Play, ArrowLeftRight, RefreshCw, Cloud, CloudOff } from 'lucide-react';
 import { Workstation } from '../../../shared/types';
-import { Modal, INPUT, BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, FOCUS, ErrorLine } from '../settingsUi';
+import { Modal, INPUT, BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, FOCUS, ErrorLine } from '../../../shared/ui/primitives';
 import { rupiah } from '../PcCard';
 import { cn } from '../../../shared/ui/utils';
 

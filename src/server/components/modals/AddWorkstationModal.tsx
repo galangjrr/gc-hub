@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Plus, Layers } from 'lucide-react';
 import { Workstation } from '../../../shared/types';
-import { Modal, Field, INPUT, BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST } from '../settingsUi';
+import { Modal, Field, INPUT, BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST } from '../../../shared/ui/primitives';
 import { cn } from '../../../shared/ui/utils';
 
 type AddResult = { success: boolean; message?: string };

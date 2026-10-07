@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Workstation } from '../../shared/types';
-import { ConfirmModal, ConfirmModalProps } from './modals/ConfirmModal';
+import { ConfirmModal, ConfirmModalProps } from '../../shared/ui/ConfirmModal';
 import { CardStatus, cardStatus, footText, hhmm, rupiah, timeLine } from './PcCard';
 import {
   X,

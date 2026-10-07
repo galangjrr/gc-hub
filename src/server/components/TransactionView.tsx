@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Search, ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import { TransactionRecord } from '../../shared/types';
 import { classifyTransaction, summarizeCash, formatRp, todayIso, TX_KIND_LABEL, TX_SOURCE_LABEL, TxKind } from '../../shared/transactions';
-import { api, denied, INPUT, BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, FOCUS, TH, TD, ErrorLine, SkeletonRows, DateRange, Field, Modal } from './settingsUi';
-import { ConfirmModal } from './modals/ConfirmModal';
+import { api, denied, INPUT, BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, FOCUS, TH, TD, ErrorLine, SkeletonRows, DateRange, Field, Modal } from '../../shared/ui/primitives';
+import { ConfirmModal } from '../../shared/ui/ConfirmModal';
 import { cn } from '../../shared/ui/utils';
 
 // Transaction log for one day range. Rows come straight from DbService.getTransactions and

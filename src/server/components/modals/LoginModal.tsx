@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Eye, EyeOff, Minus, Square, X } from 'lucide-react';
 import { EmployeeLoginResult } from '../../../shared/types';
 import { AppLogo } from '../../../shared/ui/AppLogo';
-import { api, INPUT, BTN_PRIMARY, FOCUS, BTN_GHOST } from '../settingsUi';
+import { api, INPUT, BTN_PRIMARY, FOCUS, BTN_GHOST } from '../../../shared/ui/primitives';
 import { cn } from '../../../shared/ui/utils';
 
 // Server console gate: first-admin setup on a fresh install, operator login, and unlocking a

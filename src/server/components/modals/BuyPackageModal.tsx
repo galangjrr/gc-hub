@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { Workstation, MemberAccount, BillingPackage } from '../../../shared/types';
 import { isPackageOnSale, saleWindowText } from '../../../shared/packageRules';
-import { Modal, INPUT, BTN_PRIMARY, BTN_SECONDARY, FOCUS } from '../settingsUi';
+import { Modal, INPUT, BTN_PRIMARY, BTN_SECONDARY, FOCUS } from '../../../shared/ui/primitives';
 import { CATEGORIES, categoryOf, durationText } from '../PackagePricingView';
 import { rupiah } from '../PcCard';
 import { cn } from '../../../shared/ui/utils';

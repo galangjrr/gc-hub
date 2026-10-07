@@ -11,7 +11,7 @@ import { LogView } from '../components/LogView';
 import { POSView } from '../components/POSView';
 import { RevenueReportView } from '../components/RevenueReportView';
 import { SettingsView, SettingsTab } from '../components/SettingsView';
-import { ErrorBoundary } from '../components/ErrorBoundary';
+import { ErrorBoundary } from '../../shared/ui/ErrorBoundary';
 
 // Modals
 import { LoginModal } from '../components/modals/LoginModal';
@@ -29,7 +29,7 @@ import { CouponBatchModal } from '../components/modals/CouponBatchModal';
 import { AddWorkstationModal } from '../components/modals/AddWorkstationModal';
 import { BroadcastMessageModal } from '../components/modals/BroadcastMessageModal';
 import { ExitConfirmModal } from '../components/modals/ExitConfirmModal';
-import { ConfirmModal } from '../components/modals/ConfirmModal';
+import { ConfirmModal } from '../../shared/ui/ConfirmModal';
 import { RefundModal } from '../components/modals/RefundModal';
 import { UpdateNotificationToast } from '../components/UpdateNotificationToast';
 import { OpCode, RemoteProcessItem } from '../../shared/protocol';

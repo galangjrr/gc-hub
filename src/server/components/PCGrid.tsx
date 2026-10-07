@@ -26,7 +26,7 @@ import {
   Lock,
   Unlock
 } from 'lucide-react';
-import { ConfirmModal } from './modals/ConfirmModal';
+import { ConfirmModal } from '../../shared/ui/ConfirmModal';
 import { isPackageOnSale } from '../../shared/packageRules';
 
 const STATUS_FILTERS: Array<{ id: 'all' | 'main' | 'unpaid' | 'locked' | 'idle' | 'off'; label: string; swatch: string; match: (s: CardStatus) => boolean }> = [

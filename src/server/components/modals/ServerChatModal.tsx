@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Workstation } from '../../../shared/types';
 import { X, Send, Minus, ChevronUp } from 'lucide-react';
-import { FOCUS, INPUT } from '../settingsUi';
+import { FOCUS, INPUT } from '../../../shared/ui/primitives';
 
 export interface ChatMessageItem {
   sender: string;

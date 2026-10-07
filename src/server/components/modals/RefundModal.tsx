@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Banknote } from 'lucide-react';
 import { Workstation } from '../../../shared/types';
 import { normalizeRoundingStep, roundDownToStep, RoundingStep } from '../../../shared/personalBilling';
-import { Modal, INPUT, BTN_SECONDARY, FOCUS } from '../settingsUi';
+import { Modal, INPUT, BTN_SECONDARY, FOCUS } from '../../../shared/ui/primitives';
 import { rupiah } from '../PcCard';
 
 export interface RefundModalProps {

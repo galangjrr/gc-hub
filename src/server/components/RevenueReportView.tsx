@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Download } from 'lucide-react';
 import { ShiftRecord, ShiftAuditSummary, TransactionRecord } from '../../shared/types';
 import { classifyTransaction, summarizeCash, formatRp, todayIso, txTimestamp, TX_KIND_LABEL, TX_SOURCE_LABEL, CashSummary } from '../../shared/transactions';
-import { api, INPUT, BTN_SECONDARY, FOCUS, TH, TD, ErrorLine, SkeletonRows, DateRange } from './settingsUi';
+import { api, INPUT, BTN_SECONDARY, FOCUS, TH, TD, ErrorLine, SkeletonRows, DateRange } from '../../shared/ui/primitives';
 import { useTransactionRange } from './TransactionView';
 import { cn } from '../../shared/ui/utils';
 

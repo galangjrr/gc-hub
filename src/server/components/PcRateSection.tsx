@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Workstation } from '../../shared/types';
 import { cn } from '../../shared/ui/utils';
 import { rupiah } from './PcCard';
-import { api, denied, INPUT, BTN_PRIMARY, BTN_SECONDARY, Panel, ErrorLine, SkeletonRows, TH, TD } from './settingsUi';
+import { api, denied, INPUT, BTN_PRIMARY, BTN_SECONDARY, Panel, ErrorLine, SkeletonRows, TH, TD } from '../../shared/ui/primitives';
 
 type Draft = { groupName: string; price: string };
 

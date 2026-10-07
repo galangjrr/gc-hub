@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Workstation } from '../../../shared/types';
 import { RefreshCw, Save } from 'lucide-react';
 import { OpCode } from '../../../shared/protocol';
-import { Modal, BTN_PRIMARY, BTN_SECONDARY, FOCUS } from '../settingsUi';
+import { Modal, BTN_PRIMARY, BTN_SECONDARY, FOCUS } from '../../../shared/ui/primitives';
 
 interface ScreenshotViewerModalProps {
   isOpen: boolean;

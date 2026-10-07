@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Plus, Search } from 'lucide-react';
-import { api, INPUT, BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, FOCUS, Field, ErrorLine, TH, TD, Modal } from './settingsUi';
+import { api, INPUT, BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, FOCUS, Field, ErrorLine, TH, TD, Modal } from '../../shared/ui/primitives';
 import { rupiah } from './PcCard';
 import { cn } from '../../shared/ui/utils';
 

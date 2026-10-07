@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Copy, FolderOpen, HardDriveDownload } from 'lucide-react';
-import { api, denied, INPUT, BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, Panel, Field, ReadOnlyNote, ErrorLine, SkeletonRows, TH, TD, Modal, FOCUS } from './settingsUi';
+import { api, denied, INPUT, BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, Panel, Field, ReadOnlyNote, ErrorLine, SkeletonRows, TH, TD, Modal, FOCUS } from '../../shared/ui/primitives';
 import { BillingPackage, PersonalRateConfig, ShiftAuditSummary } from '../../shared/types';
 import { PackagePricingView } from './PackagePricingView';
-import { ConfirmModal } from './modals/ConfirmModal';
+import { ConfirmModal } from '../../shared/ui/ConfirmModal';
 import { rupiah } from './PcCard';
 import { cn } from '../../shared/ui/utils';
 

@@ -3,9 +3,9 @@ import { Plus, Search } from 'lucide-react';
 import { BillingPackage, PersonalRateConfig } from '../../shared/types';
 import { calcPersonalBill, normalizeAccumulationMinutes, normalizeRoundingStep, roundDownToStep, RoundingStep } from '../../shared/personalBilling';
 import { isPackageOnSale, saleWindowText } from '../../shared/packageRules';
-import { ConfirmModal } from './modals/ConfirmModal';
+import { ConfirmModal } from '../../shared/ui/ConfirmModal';
 import { rupiah } from './PcCard';
-import { api, denied, INPUT, BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, FOCUS, Panel, Field, ReadOnlyNote, ErrorLine, SkeletonRows, TH, TD, Modal } from './settingsUi';
+import { api, denied, INPUT, BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, FOCUS, Panel, Field, ReadOnlyNote, ErrorLine, SkeletonRows, TH, TD, Modal } from '../../shared/ui/primitives';
 import { cn } from '../../shared/ui/utils';
 import { PcRateSection } from './PcRateSection';
 

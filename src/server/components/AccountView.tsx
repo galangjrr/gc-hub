@@ -4,8 +4,8 @@ import {
   Plus, Pencil, Trash2, RotateCw, Search,
   ChevronLeft, ChevronRight, User, Ticket, History, CreditCard, Sparkles, Check
 } from 'lucide-react';
-import { ConfirmModal } from './modals/ConfirmModal';
-import { INPUT, BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, TH, TD } from './settingsUi';
+import { ConfirmModal } from '../../shared/ui/ConfirmModal';
+import { INPUT, BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, TH, TD } from '../../shared/ui/primitives';
 import { cn } from '../../shared/ui/utils';
 
 interface AccountViewProps {

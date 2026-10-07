@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { ClientView } from './views/ClientView'
-import { ErrorBoundary } from '../server/components/ErrorBoundary'
+import { ErrorBoundary } from '../shared/ui/ErrorBoundary'
 import '../shared/index.css'
 import { applyTheme, getTheme } from '../shared/theme'
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Lock, LogOut, AlertTriangle } from 'lucide-react';
-import { Modal, BTN_SECONDARY, FOCUS } from '../settingsUi';
+import { Modal, BTN_SECONDARY, FOCUS } from '../../../shared/ui/primitives';
 import { cn } from '../../../shared/ui/utils';
 
 interface ExitConfirmModalProps {

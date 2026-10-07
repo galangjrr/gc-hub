@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Workstation } from '../../../shared/types';
 import { RemoteProcessItem } from '../../../shared/protocol';
 import { RefreshCw, Search, Gamepad2, Globe, AppWindow, Cpu, ShieldCheck, Trash2 } from 'lucide-react';
-import { Modal, BTN_SECONDARY, BTN_GHOST, FOCUS, INPUT, TH, TD, SkeletonRows } from '../settingsUi';
-import { ConfirmModal } from './ConfirmModal';
+import { Modal, BTN_SECONDARY, BTN_GHOST, FOCUS, INPUT, TH, TD, SkeletonRows } from '../../../shared/ui/primitives';
+import { ConfirmModal } from '../../../shared/ui/ConfirmModal';
 import { cn } from '../../../shared/ui/utils';
 
 interface RemoteTaskManagerModalProps {

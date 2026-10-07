@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MemberAccount } from '../../../shared/types';
-import { Modal, Field, INPUT, BTN_PRIMARY, BTN_SECONDARY } from '../settingsUi';
+import { Modal, Field, INPUT, BTN_PRIMARY, BTN_SECONDARY } from '../../../shared/ui/primitives';
 import { cn } from '../../../shared/ui/utils';
 
 interface MemberFormModalProps {
