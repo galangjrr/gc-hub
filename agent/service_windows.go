@@ -18,6 +18,8 @@ func (handler) Execute(_ []string, r <-chan svc.ChangeRequest, s chan<- svc.Stat
 
 	srv := newPipeServer()
 	go srv.serve()
+	wd := newWatchdog()
+	go wd.run()
 	s <- svc.Status{State: svc.Running, Accepts: accepted}
 
 	for c := range r {
@@ -29,11 +31,13 @@ func (handler) Execute(_ []string, r <-chan svc.ChangeRequest, s chan<- svc.Stat
 			// machine unlocked so revert never strands a kiosk policy the user cannot undo.
 			s <- svc.Status{State: svc.StopPending}
 			_ = clearPolicy()
+			wd.close()
 			srv.close()
 			return false, 0
 		case svc.Shutdown:
 			// A reboot keeps the policy: the client re-locks on next boot before the user can act.
 			s <- svc.Status{State: svc.StopPending}
+			wd.close()
 			srv.close()
 			return false, 0
 		}
@@ -44,6 +48,7 @@ func (handler) Execute(_ []string, r <-chan svc.ChangeRequest, s chan<- svc.Stat
 func runService(debug bool) {
 	if debug {
 		log.SetPrefix("[gc-agent] ")
+		go newWatchdog().run()
 		srv := newPipeServer()
 		srv.serve() // blocks
 		return
