@@ -37,6 +37,14 @@ export class WindowsProvisioner {
     return path.join(baseDir, 'provision_snapshot.json');
   }
 
+  // gc-agent ships in bin/ next to the client exe (dev: repo bin/). It is the LocalSystem helper
+  // that enforces machine-wide kiosk policy the standard booth user cannot set itself.
+  private static agentExePath(): string {
+    const packaged = path.resolve(path.dirname(process.execPath), 'bin', 'gc-agent.exe');
+    if (fs.existsSync(packaged)) return packaged;
+    return path.resolve(process.cwd(), 'bin', 'gc-agent.exe');
+  }
+
   /**
    * Check current provision status of the Windows Workstation
    */
@@ -216,6 +224,19 @@ export class WindowsProvisioner {
         steps.push('Autostart Kiosk GC-Hub Client didaftarkan ke Windows Run registry.');
       } catch {}
 
+      // 8. Install gc-agent as a LocalSystem service (enforces machine-wide kiosk policy)
+      try {
+        const agentExe = this.agentExePath();
+        if (fs.existsSync(agentExe)) {
+          execSync(`"${agentExe}" install`, { stdio: 'ignore', windowsHide: true });
+          steps.push('Service gc-agent (LocalSystem) dipasang untuk policy level sistem.');
+        } else {
+          steps.push('Lewati gc-agent: bin/gc-agent.exe tidak ditemukan (jalankan npm run build:agent).');
+        }
+      } catch (e: any) {
+        steps.push(`Peringatan: gc-agent gagal dipasang (${e?.message || e}).`);
+      }
+
       // Save snapshot file
       fs.writeFileSync(this.getSnapshotFilePath(), JSON.stringify(snapshot, null, 2), 'utf8');
 
@@ -276,6 +297,15 @@ export class WindowsProvisioner {
     }
 
     try {
+      // 0. Uninstall gc-agent service (clears every kiosk policy it set, then removes itself)
+      try {
+        const agentExe = this.agentExePath();
+        if (fs.existsSync(agentExe)) {
+          execSync(`"${agentExe}" uninstall`, { stdio: 'ignore', windowsHide: true });
+          steps.push('Service gc-agent dicabut dan policy level sistem dibersihkan.');
+        }
+      } catch {}
+
       // 1. Delete Standard User "GC Net"
       try {
         execSync(`net user "${snapshot.createdUserName || this.STANDARD_USERNAME}" /delete`, { stdio: 'ignore', windowsHide: true });

@@ -1,5 +1,6 @@
 import os from 'os';
 import fs from 'fs';
+import path from 'path';
 import { exec, execFile } from 'child_process';
 import type { HardwareTelemetryPayload } from '../shared/protocol';
 
@@ -96,44 +97,35 @@ export class TelemetryService {
     return this.cachedGpuName;
   }
 
-  /**
-   * Get complete telemetry snapshot for a workstation
-   */
-  // PowerShell: foreground window -> owning process -> "name|file description".
-  private static readonly FOREGROUND_PS = Buffer.from(`
-Add-Type @"
-using System; using System.Runtime.InteropServices;
-public static class GcFg {
-  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
-  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint p);
-}
-"@
-$fgPid = 0
-[void][GcFg]::GetWindowThreadProcessId([GcFg]::GetForegroundWindow(), [ref]$fgPid)
-$p = Get-Process -Id $fgPid -ErrorAction SilentlyContinue
-if ($p) { "$($p.Id)|$($p.ProcessName)|$($p.Description)" }
-`, 'utf16le').toString('base64');
+  // gc-probe ships in bin/ next to the client exe (dev: repo bin/). It runs in the booth user's
+  // session, which the SYSTEM agent cannot do: a service in session 0 cannot read the interactive
+  // desktop's foreground window.
+  private static probeExePath(): string {
+    const packaged = path.resolve(path.dirname(process.execPath), 'bin', 'gc-probe.exe');
+    if (fs.existsSync(packaged)) return packaged;
+    return path.resolve(process.cwd(), 'bin', 'gc-probe.exe');
+  }
 
   /**
-   * Name of the app in the foreground, e.g. "Valorant" or "Google Chrome". Empty when the
-   * GC Hub lock screen itself is in front or on non-Windows machines.
-   * ponytail: spawns one PowerShell per telemetry tick (every 10 s, ~0.3 s CPU); move to a
-   * resident native helper if it shows up on low-end client PCs.
+   * Name of the app in the foreground, e.g. "valorant" or "chrome". Undefined when the GC Hub lock
+   * screen itself is in front, off Windows, or when gc-probe is absent (dev / unprovisioned).
+   * Replaces a per-tick PowerShell spawn with a native one-shot; gc-probe prints "<pid>|<name>".
    */
   public static getForegroundApp(): Promise<string | undefined> {
     if (process.platform !== 'win32') return Promise.resolve(undefined);
+    const probe = this.probeExePath();
+    if (!fs.existsSync(probe)) return Promise.resolve(undefined);
     return new Promise(resolve => {
-      execFile('powershell', ['-NoProfile', '-NonInteractive', '-EncodedCommand', this.FOREGROUND_PS],
-        { windowsHide: true, timeout: 4000 }, (err, stdout) => {
-          if (err) return resolve(undefined);
-          const [pidStr, name = '', desc = ''] = String(stdout).trim().split('|');
-          const lower = name.toLowerCase();
-          if (!name || Number(pidStr) === process.pid || lower.startsWith('gc-hub') || lower === 'electron'
-            || lower === 'explorer' || lower === 'lockapp') {
-            return resolve(undefined);
-          }
-          resolve((desc.trim() || name).slice(0, 40));
-        });
+      execFile(probe, { windowsHide: true, timeout: 4000 }, (err, stdout) => {
+        if (err) return resolve(undefined);
+        const [pidStr, name = ''] = String(stdout).trim().split('|');
+        const lower = name.toLowerCase();
+        if (!name || Number(pidStr) === process.pid || lower.startsWith('gc-hub') || lower === 'electron'
+          || lower === 'explorer' || lower === 'lockapp') {
+          return resolve(undefined);
+        }
+        resolve(name.slice(0, 40));
+      });
     });
   }
 
