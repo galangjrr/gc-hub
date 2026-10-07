@@ -1,11 +1,8 @@
 // Verifies the AgentClient <-> gc-agent line protocol: request framing, response parsing,
-// error propagation, and the no-agent timeout. Runs over a fake agent on a local named pipe, or a
-// Unix socket off Windows, so it needs no installed agent and no Electron. Register: npm run test:agent-client.
+// error propagation, and the no-agent timeout. Runs over a fake agent on a local named pipe, so it
+// needs no installed agent and no Electron. Windows only, like the agent. Register: npm run test:agent-client.
 import assert from 'node:assert/strict';
 import net from 'node:net';
-import os from 'node:os';
-import path from 'node:path';
-import fs from 'node:fs';
 
 // A fake agent: reads newline-delimited JSON requests, replies per the handler given.
 function startFakeAgent(sockPath: string, reply: (req: any) => any): Promise<net.Server> {
@@ -31,11 +28,7 @@ async function main() {
   let passed = 0;
   const pass = (msg: string) => { console.log(`  ✓ ${msg}`); passed++; };
 
-  // Windows is the real target: a named pipe, like the agent. The Unix socket only serves the Linux cloud VM.
-  const sockPath = process.platform === 'win32'
-    ? `\\\\.\\pipe\\gc-agent-test-${process.pid}`
-    : path.join(os.tmpdir(), `gc-agent-test-${process.pid}.sock`);
-  try { fs.unlinkSync(sockPath); } catch {}
+  const sockPath = `\\\\.\\pipe\\gc-agent-test-${process.pid}`;
   process.env.GC_AGENT_PIPE = sockPath;
 
   // Import AFTER the env override so the module picks up the test socket path.
@@ -82,12 +75,10 @@ async function main() {
   // 4. an agent error (ok:false) rejects rather than resolving silently
   const errServer = server;
   await new Promise<void>((r) => errServer.close(() => r()));
-  try { fs.unlinkSync(sockPath); } catch {}
   const server2 = await startFakeAgent(sockPath, (req) => ({ id: req.id, ok: false, error: 'akses ditolak' }));
   await assert.rejects(() => AgentClient.applyKioskPolicy(), /akses ditolak/, 'agent error propagates to a rejection');
   pass('agent error propagation');
   await new Promise<void>((r) => server2.close(() => r()));
-  try { fs.unlinkSync(sockPath); } catch {}
 
   // 4. no agent listening -> rejects (connection refused / timeout), never hangs or resolves
   await assert.rejects(() => AgentClient.clearKioskPolicy(), 'missing agent rejects, fails soft for callers');

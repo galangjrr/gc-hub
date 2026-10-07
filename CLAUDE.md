@@ -69,4 +69,4 @@ npm run typecheck
 npm test            # suite lengkap, butuh Windows
 ```
 
-**Di sesi cloud Linux:** jalankan `npm run typecheck`, build Vite, dan test yang berjalan lewat `node` atau `tsx`, yaitu `test:billing`, `test:personal`, `test:lan-auth`, `test:transactions`, `test:booking:sql`, dan `test:booking:api`. Test yang lewat `scripts/run-electron-test.mjs` dan `npm run test:agent` butuh Windows; lewati dan sebutkan di PR bahwa test itu belum dijalankan. Fitur khusus Windows, seperti DPAPI, registry, process guard, dan input injector, tidak bisa diverifikasi di cloud.
+**Di sesi cloud Linux:** jalankan `npm run typecheck`, build Vite, dan test yang berjalan lewat `node` atau `tsx`, yaitu `test:billing`, `test:personal`, `test:lan-auth`, `test:transactions`, `test:booking:sql`, dan `test:booking:api`. Test yang lewat `scripts/run-electron-test.mjs`, `npm run test:agent`, dan `npm run test:agent-client` butuh Windows; lewati dan sebutkan di PR bahwa test itu belum dijalankan. Fitur khusus Windows, seperti DPAPI, registry, process guard, dan input injector, tidak bisa diverifikasi di cloud.
