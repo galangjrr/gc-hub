@@ -63,7 +63,7 @@
     "copyright": "Copyright © 2026 GC Net",
     "publish": {
       "provider": "github",
-      "owner": "gcnet",
+      "owner": "galangjrr",
       "repo": "gc-hub"
     },
     "npmRebuild": false,
