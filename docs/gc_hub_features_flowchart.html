@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GC-Hub - Activity &amp; Flowchart Lengkap Seluruh Fitur</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Nunito', sans-serif;
+      background-color: #090a0b;
+      color: #f5f5f5;
+    }
+    .mermaid {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #111315;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #2b2f34;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #76b900;
+    }
+  </style>
+</head>
+<body class="p-3 md:p-6 bg-[#090a0b] text-[#f5f5f5]">
+
+  <div class="w-full max-w-[96vw] mx-auto space-y-4">
+    
+    <!-- TOP HEADER -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between border-b border-[#2b2f34] pb-4 gap-4">
+      <div>
+        <div class="inline-flex items-center space-x-2 px-3 py-0.5 bg-[#76b900]/10 border border-[#76b900]/30 rounded-full text-[#76b900] text-xs font-black uppercase tracking-wider mb-1">
+          <span class="w-2 h-2 rounded-full bg-[#76b900] animate-pulse"></span>
+          <span>Dokumentasi Arsitektur Kaizen Core</span>
+        </div>
+        <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight text-[#f5f5f5]">
+          Peta Alur &amp; Activity Diagram Seluruh Fitur GC-Hub
+        </h1>
+        <p class="text-xs md:text-sm text-[#b8bcc2]">
+          Spesifikasi logika komprehensif untuk Server, Client Kiosk, State Machine Billing, dan Cloud Booking.
+        </p>
+      </div>
+
+      <!-- STATS BADGES -->
+      <div class="flex items-center gap-2">
+        <div class="px-3 py-2 bg-[#111315] border border-[#2b2f34] rounded-xl text-center">
+          <span class="block text-[10px] text-[#777d84] font-bold uppercase tracking-wider">Total Modul</span>
+          <span class="text-base font-black text-[#76b900]">8 Fitur Inti</span>
+        </div>
+        <div class="px-3 py-2 bg-[#111315] border border-[#2b2f34] rounded-xl text-center">
+          <span class="block text-[10px] text-[#777d84] font-bold uppercase tracking-wider">Protokol WS</span>
+          <span class="text-base font-mono font-bold text-[#38bdf8]">Port 7894</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- FEATURE NAVIGATION TABS -->
+    <div class="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-[#2b2f34] no-scrollbar">
+      <button data-tab="tab1" class="tab-btn px-3.5 py-2 bg-[#76b900] text-[#090a0b] font-extrabold text-xs rounded-xl transition-all shadow-md whitespace-nowrap flex items-center gap-1.5">
+        <span>1. Autentikasi &amp; Login Kiosk</span>
+      </button>
+      <button data-tab="tab2" class="tab-btn px-3.5 py-2 bg-[#111315] hover:bg-[#17191c] text-[#b8bcc2] hover:text-[#f5f5f5] border border-[#2b2f34] font-bold text-xs rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5">
+        <span>2. Billing Engine &amp; Siklus Sesi</span>
+      </button>
+      <button data-tab="tab3" class="tab-btn px-3.5 py-2 bg-[#111315] hover:bg-[#17191c] text-[#b8bcc2] hover:text-[#f5f5f5] border border-[#2b2f34] font-bold text-xs rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5">
+        <span>3. Antrean Booking vs Walk-In</span>
+      </button>
+      <button data-tab="tab4" class="tab-btn px-3.5 py-2 bg-[#111315] hover:bg-[#17191c] text-[#b8bcc2] hover:text-[#f5f5f5] border border-[#2b2f34] font-bold text-xs rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5">
+        <span>4. Pemindahan / Transfer Sesi</span>
+      </button>
+      <button data-tab="tab5" class="tab-btn px-3.5 py-2 bg-[#111315] hover:bg-[#17191c] text-[#b8bcc2] hover:text-[#f5f5f5] border border-[#2b2f34] font-bold text-xs rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5">
+        <span>5. Pemesanan F&amp;B &amp; POS</span>
+      </button>
+      <button data-tab="tab6" class="tab-btn px-3.5 py-2 bg-[#111315] hover:bg-[#17191c] text-[#b8bcc2] hover:text-[#f5f5f5] border border-[#2b2f34] font-bold text-xs rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5">
+        <span>6. Proteksi Keamanan Kiosk</span>
+      </button>
+      <button data-tab="tab7" class="tab-btn px-3.5 py-2 bg-[#111315] hover:bg-[#17191c] text-[#b8bcc2] hover:text-[#f5f5f5] border border-[#2b2f34] font-bold text-xs rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5">
+        <span>7. Remote Management Kasir</span>
+      </button>
+      <button data-tab="tab8" class="tab-btn px-3.5 py-2 bg-[#111315] hover:bg-[#17191c] text-[#b8bcc2] hover:text-[#f5f5f5] border border-[#2b2f34] font-bold text-xs rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5">
+        <span>8. Shift Kasir &amp; Laporan Kas</span>
+      </button>
+    </div>
+
+    <!-- MAIN DIAGRAM DISPLAY CARD -->
+    <div id="diagramContainer" class="relative w-full bg-[#111315] border border-[#2b2f34] rounded-2xl shadow-2xl overflow-hidden">
+      
+      <!-- FLOATING TOOLBAR CONTROLS -->
+      <div class="absolute top-4 right-4 z-20 flex items-center gap-2 bg-[#17191c]/90 backdrop-blur-md border border-[#2b2f34] px-3 py-1.5 rounded-xl shadow-xl">
+        <span id="zoomLevel" class="text-xs font-mono font-bold text-[#76b900] min-w-[45px] text-center">100%</span>
+        <div class="h-4 w-px bg-[#2b2f34]"></div>
+        <button id="btnZoomIn" title="Zoom In (+)" class="w-8 h-8 flex items-center justify-center bg-[#1d2024] hover:bg-[#24282d] text-[#f5f5f5] border border-[#2b2f34] rounded-lg transition-colors font-bold text-base select-none">
+          +
+        </button>
+        <button id="btnZoomOut" title="Zoom Out (-)" class="w-8 h-8 flex items-center justify-center bg-[#1d2024] hover:bg-[#24282d] text-[#f5f5f5] border border-[#2b2f34] rounded-lg transition-colors font-bold text-base select-none">
+          &minus;
+        </button>
+        <button id="btnFit" title="Fit to Screen" class="px-3 h-8 flex items-center justify-center bg-[#76b900] hover:bg-[#85cf00] text-[#090a0b] font-black rounded-lg transition-colors text-xs select-none">
+          Fit Layar
+        </button>
+        <button id="btnReset" title="Reset 100%" class="px-2.5 h-8 flex items-center justify-center bg-[#1d2024] hover:bg-[#24282d] text-[#f5f5f5] border border-[#2b2f34] rounded-lg transition-colors text-xs font-bold select-none">
+          100%
+        </button>
+        <div class="h-4 w-px bg-[#2b2f34] hidden sm:block"></div>
+        <span class="text-[11px] text-[#777d84] px-1 hidden lg:inline select-none">Scroll: Zoom &bull; Drag: Geser</span>
+      </div>
+
+      <!-- VIEWPORT -->
+      <div id="viewport" class="w-full h-[70vh] min-h-[540px] flex items-center justify-center cursor-grab select-none overflow-hidden relative">
+        <div id="panzoom-target" class="origin-center transition-transform duration-75 inline-block">
+          <div id="mermaid-render-box" class="mermaid">
+            <!-- Dynamic SVG content will be rendered here -->
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- EXPLANATION / QUICK SUMMARY CARDS -->
+    <div id="featureSummaryCards" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+      
+      <div class="p-4 bg-[#17191c] border border-[#2b2f34] rounded-xl space-y-1.5">
+        <div class="font-bold text-[#76b900] text-sm flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-[#76b900]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <span id="summaryCard1Title">1. Otoritas Server Mutlak</span>
+        </div>
+        <p id="summaryCard1Desc" class="text-[#b8bcc2] leading-relaxed">
+          Klien hanya menjadi representasi visual. Pengurangan durasi, saldo, pemutusan sesi, dan migrasi bilik 100% diproses oleh Server BillingEngine.
+        </p>
+      </div>
+
+      <div class="p-4 bg-[#17191c] border border-[#2b2f34] rounded-xl space-y-1.5">
+        <div class="font-bold text-[#38bdf8] text-sm flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-[#38bdf8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+          </svg>
+          <span id="summaryCard2Title">2. Realtime WebSocket &amp; Dual Sync</span>
+        </div>
+        <p id="summaryCard2Desc" class="text-[#b8bcc2] leading-relaxed">
+          Koneksi lokal beroperasi via WebSocket TCP port 7894 (latensi &lt; 5ms). Transaksi dan antrean online tersinkronisasi realtime ke Supabase Cloud.
+        </p>
+      </div>
+
+      <div class="p-4 bg-[#17191c] border border-[#2b2f34] rounded-xl space-y-1.5">
+        <div class="font-bold text-[#f4b400] text-sm flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-[#f4b400]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+          </svg>
+          <span id="summaryCard3Title">3. Zero Idle &amp; Proteksi Kiosk</span>
+        </div>
+        <p id="summaryCard3Desc" class="text-[#b8bcc2] leading-relaxed">
+          Prioritas kehadiran fisik menjamin bilik warnet tidak pernah menganggur. ProcessWatcherGuard mengamankan Windows dari upaya pembobolan player.
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    // 8 COMPLETE DIAGRAM DEFINITIONS
+    const DIAGRAMS = {
+      tab1: `flowchart LR
+    classDef eventNode fill:#17191c,stroke:#76b900,stroke-width:2px,color:#f5f5f5;
+    classDef clientTask fill:#111315,stroke:#38bdf8,stroke-width:2px,color:#f5f5f5,font-weight:700;
+    classDef serverTask fill:#111315,stroke:#76b900,stroke-width:2px,color:#f5f5f5,font-weight:700;
+    classDef decisionNode fill:#1d2024,stroke:#f4b400,stroke-width:2.5px,color:#f5f5f5,font-weight:700;
+    classDef endNode fill:#17191c,stroke:#0fa336,stroke-width:2.5px,color:#f5f5f5,font-weight:700;
+    classDef errorNode fill:#17191c,stroke:#e52020,stroke-width:2px,color:#e52020,font-weight:700;
+
+    subgraph LANE_CLIENT ["KLIEN: LOCKSCREEN KIOSK"]
+        direction LR
+        C_START(["Klien Standby (Layar Terkunci)"]):::eventNode
+        C_TAB{"Pilih Tab Login"}:::decisionNode
+        C_LOGIN_MEM["Input Username & Password Member"]:::clientTask
+        C_LOGIN_VOUCHER["Input Kode Kupon / Voucher"]:::clientTask
+        C_LOGIN_ADMIN["Input Kredensial Master Admin"]:::clientTask
+        C_SEND_AUTH["Kirim Paket AUTH_REQUEST ke Server"]:::clientTask
+        C_UNLOCK["Buka Kunci Layar & Tampilkan Floating Capsule"]:::clientTask
+        C_SHOW_ERROR["Tampilkan Modal Dialog Gagal"]:::errorNode
+        C_ACTIVE(["Sesi Workstation Aktif"]):::endNode
+    end
+
+    subgraph LANE_SERVER ["SERVER: AUTH & VERIFIKASI SQLITE"]
+        direction LR
+        S_RECV["Terima AUTH_REQUEST / COUPON_REQ"]:::serverTask
+        S_VALIDATE{"Validasi Kredensial"}:::decisionNode
+        S_CHECK_ADMIN{"Apakah Master Admin?"}:::decisionNode
+        S_CHECK_MEM{"Cek Akun di SQLite Users"}:::decisionNode
+        S_CHECK_BALANCE{"Cek Saldo Member >= Rp 2.000?"}:::decisionNode
+        S_CHECK_COUPON{"Cek Kupon di SQLite Coupons"}:::decisionNode
+        S_START_SESSION["Inisialisasi BillingEngine Sesi Baru"]:::serverTask
+        S_SEND_SUCCESS["Kirim OpCode.AUTH_SUCCESS + SessionData"]:::serverTask
+        S_SEND_FAIL["Kirim OpCode.AUTH_FAILED + Alasan"]:::errorNode
+    end
+
+    C_START --> C_TAB
+    C_TAB -->|"Tab Member"| C_LOGIN_MEM --> C_SEND_AUTH
+    C_TAB -->|"Tab Voucher"| C_LOGIN_VOUCHER --> C_SEND_AUTH
+    C_TAB -->|"Admin Bypass"| C_LOGIN_ADMIN --> C_SEND_AUTH
+
+    C_SEND_AUTH --> S_RECV --> S_VALIDATE
+    S_VALIDATE --> S_CHECK_ADMIN
+    
+    S_CHECK_ADMIN -->|"Ya (Admin)"| S_START_SESSION
+    S_CHECK_ADMIN -->|"Bukan Admin"| S_CHECK_MEM
+
+    S_CHECK_MEM -->|"Member Valid"| S_CHECK_BALANCE
+    S_CHECK_MEM -->|"Bukan Member"| S_CHECK_COUPON
+
+    S_CHECK_BALANCE -->|"Saldo Cukup"| S_START_SESSION
+    S_CHECK_BALANCE -->|"Saldo Kurang"| S_SEND_FAIL
+
+    S_CHECK_COUPON -->|"Kupon Valid"| S_START_SESSION
+    S_CHECK_COUPON -->|"Kupon Kadaluarsa / Salah"| S_SEND_FAIL
+
+    S_START_SESSION --> S_SEND_SUCCESS --> C_UNLOCK --> C_ACTIVE
+    S_SEND_FAIL --> C_SHOW_ERROR --> C_START
+
+    style LANE_CLIENT fill:#111315,stroke:#38bdf8,stroke-width:1.5px,stroke-dasharray: 4 4;
+    style LANE_SERVER fill:#111315,stroke:#76b900,stroke-width:1.5px,stroke-dasharray: 4 4;`,
+
+      tab2: `flowchart LR
+    classDef eventNode fill:#17191c,stroke:#76b900,stroke-width:2px,color:#f5f5f5;
+    classDef serverTask fill:#111315,stroke:#76b900,stroke-width:2px,color:#f5f5f5,font-weight:700;
+    classDef decisionNode fill:#1d2024,stroke:#f4b400,stroke-width:2.5px,color:#f5f5f5,font-weight:700;
+    classDef clientTask fill:#111315,stroke:#38bdf8,stroke-width:2px,color:#f5f5f5,font-weight:700;
+    classDef endNode fill:#17191c,stroke:#e52020,stroke-width:2.5px,color:#f5f5f5,font-weight:700;
+
+    subgraph LANE_ENGINE ["AUTHORITATIVE 1-SECOND TICK ENGINE"]
+        direction LR
+        TICK_START(["Server Timer Tick (Setiap 1000ms)"]):::eventNode
+        TICK_EVAL{"Evaluasi Jenis Billing"}:::decisionNode
+        TICK_POSTPAID["Postpaid: Hitung Biaya Berjalan Sesuai Tarif"]:::serverTask
+        TICK_PREPAID["Prepaid/Paket: Kurangi Detik Tersisa"]:::serverTask
+        TICK_SYNC_DB["Auto-Persist Snapshot ke SQLite Workstations"]:::serverTask
+        TICK_BROADCAST["Kirim OpCode.SESSION_TICK ke Klien"]:::serverTask
+        TICK_EXPIRED{"Apakah Waktu Habis (<= 0 detik)?"}:::decisionNode
+        TICK_CUTOFF["Eksekusi FORCE_END_SESSION + Cutoff"]:::endNode
+    end
+
+    subgraph LANE_CLIENT_SESSION ["RUNTIME FLOATING WIDGET (KLIEN)"]
+        direction LR
+        C_RECV_TICK["Terima SESSION_TICK dari Server"]:::clientTask
+        C_UPDATE_UI["Update Countdown, Waktu & Total Biaya"]:::clientTask
+        C_CHECK_WARN{"Waktu Tersisa <= 5 Menit / 1 Menit?"}:::decisionNode
+        C_WARN_ALERT["Bunyikan Web Audio Tone + Toast Peringatan"]:::clientTask
+        C_RECV_CUTOFF["Terima FORCE_END_SESSION"]:::clientTask
+        C_CLEANUP["Wipe Temp Browser + Kunci Layar Kiosk"]:::endNode
+    end
+
+    TICK_START --> TICK_EVAL
+    TICK_EVAL -->|"Postpaid"| TICK_POSTPAID --> TICK_SYNC_DB
+    TICK_EVAL -->|"Prepaid / Paket"| TICK_PREPAID --> TICK_EXPIRED
+
+    TICK_EXPIRED -->|"Masih Ada Waktu"| TICK_SYNC_DB
+    TICK_EXPIRED -->|"Waktu Habis"| TICK_CUTOFF
+
+    TICK_SYNC_DB --> TICK_BROADCAST --> C_RECV_TICK --> C_UPDATE_UI --> C_CHECK_WARN
+    C_CHECK_WARN -->|"Ya (Peringatan)"| C_WARN_ALERT
+    C_CHECK_WARN -->|"Tidak"| C_UPDATE_UI
+
+    TICK_CUTOFF --> C_RECV_CUTOFF --> C_CLEANUP
+
+    style LANE_ENGINE fill:#111315,stroke:#76b900,stroke-width:1.5px,stroke-dasharray: 4 4;
+    style LANE_CLIENT_SESSION fill:#111315,stroke:#38bdf8,stroke-width:1.5px,stroke-dasharray: 4 4;`,
+
+      tab3: `flowchart LR
+    classDef eventNode fill:#17191c,stroke:#76b900,stroke-width:2px,color:#f5f5f5;
+    classDef bookerTask fill:#111315,stroke:#38bdf8,stroke-width:2px,color:#f5f5f5,font-weight:700;
+    classDef walkinTask fill:#111315,stroke:#0fa336,stroke-width:2px,color:#f5f5f5,font-weight:700;
+    classDef kasirTask fill:#17191c,stroke:#f4b400,stroke-width:2px,color:#f5f5f5,font-weight:700;
+    classDef kasirDecision fill:#1d2024,stroke:#f4b400,stroke-width:2.5px,color:#f5f5f5,font-weight:700;
+    classDef endNode fill:#17191c,stroke:#0fa336,stroke-width:2.5px,color:#f5f5f5,font-weight:700;
+    classDef cancelNode fill:#17191c,stroke:#e52020,stroke-width:2px,color:#e52020,font-weight:700;
+
+    subgraph LANE_BOOKER ["LANE 1: PELANGGAN BOOKER (ONLINE)"]
+        direction LR
+        B_START(["Mulai Booking via Web/WA"]):::eventNode
+        B_MODE{"Pilih Jenis Booking"}:::kasirDecision
+        B_QUEUE_BUSY["Mode 1 (Utama): Antre PC Terpakai"]:::bookerTask
+        B_TIME_SLOT["Mode 2 (Sekunder): Booking Jam Tertentu"]:::bookerTask
+        B_PAID["BAYAR LUNAS (QRIS / DANA)"]:::bookerTask
+        B_UNPAID["BELUM BAYAR (Pesan Slot)"]:::bookerTask
+        B_ARRIVE["Tiba di Lokasi Warnet"]:::bookerTask
+        B_END(["Sesi Booker Aktif (Durasi Utuh)"]):::endNode
+        B_CANCEL(["Booking Hangus / Batal"]):::cancelNode
+    end
+
+    subgraph LANE_WALKIN ["LANE 2: PELANGGAN WALK-IN (FISIK)"]
+        direction LR
+        W_START(["Tiba Fisik di Warnet"]):::eventNode
+        W_CLAIM["Duduk di PC-01 (Minta Izin Kasir)"]:::walkinTask
+        W_PLAY["Sesi Walk-In Aktif (Zero Idle)"]:::walkinTask
+    end
+
+    subgraph LANE_KASIR ["LANE 3: KASIR / OPERATOR (KONTROL GRACE)"]
+        direction LR
+        K_EVAL{"PC-01 Kosong:<br/>Apakah Booker Hadir?"}:::kasirDecision
+        K_CHECK_WALKIN{"Ada Walk-In Standby?"}:::kasirDecision
+        K_OVERRIDE["Berikan PC-01 ke Walk-In (0 Detik Idle)"]:::kasirTask
+        K_REASSIGN["Realokasi Booker Lunas ke PC Lain"]:::kasirTask
+        K_DISCARD["Batalkan Antrean Belum Bayar"]:::kasirTask
+    end
+
+    B_START --> B_MODE
+    B_MODE -->|"Antre PC"| B_QUEUE_BUSY --> B_PAID
+    B_MODE -->|"Booking Jam"| B_TIME_SLOT --> B_UNPAID
+
+    W_START --> K_CHECK_WALKIN
+
+    K_EVAL -->|"Ya (Sudah di Lokasi)"| B_END
+    K_EVAL -->|"Tidak (Belum Hadir)"| K_CHECK_WALKIN
+
+    K_CHECK_WALKIN -->|"Ada Walk-In"| K_OVERRIDE --> W_CLAIM --> W_PLAY
+    K_OVERRIDE --> K_DISCARD --> B_CANCEL
+
+    W_PLAY -.->|"Saat Booker Lunas Tiba"| B_ARRIVE --> K_REASSIGN --> B_END
+
+    style LANE_BOOKER fill:#111315,stroke:#38bdf8,stroke-width:1.5px,stroke-dasharray: 4 4;
+    style LANE_WALKIN fill:#111315,stroke:#0fa336,stroke-width:1.5px,stroke-dasharray: 4 4;
+    style LANE_KASIR fill:#17191c,stroke:#f4b400,stroke-width:1.5px,stroke-dasharray: 4 4;`,
+
+      tab4: `flowchart LR
+    classDef eventNode fill:#17191c,stroke:#76b900,stroke-width:2px,color:#f5f5f5;
+    classDef kasirTask fill:#17191c,stroke:#f4b400,stroke-width:2px,color:#f5f5f5,font-weight:700;
+    classDef serverTask fill:#111315,stroke:#76b900,stroke-width:2px,color:#f5f5f5,font-weight:700;
+    classDef clientTask fill:#111315,stroke:#38bdf8,stroke-width:2px,color:#f5f5f5,font-weight:700;
+    classDef endNode fill:#17191c,stroke:#0fa336,stroke-width:2.5px,color:#f5f5f5,font-weight:700;
+
+    subgraph LANE_KASIR_TRANSFER ["KASIR: INTERAKSI DENAH WORKSTATION"]
+        direction LR
+        K_REQ(["Permintaan Pindah PC"]):::eventNode
+        K_ACTION["Drag-and-Drop / Klik Kanan: Transfer Sesi"]:::kasirTask
+        K_SELECT_TARGET["Pilih Bilik Tujuan (Misal: PC-01 ke PC-05)"]:::kasirTask
+        K_CONFIRM["Eksekusi BillingEngine.transferSession()"]:::kasirTask
+    end
+
+    subgraph LANE_ENGINE_TRANSFER ["SERVER: ENGINE STATE MIGRATION"]
+        direction LR
+        S_HOLD_SESSION["Ambil Snapshot State Sesi PC-01"]:::serverTask
+        S_RESET_SOURCE["Kirim FORCE_END_SESSION & Kunci PC-01"]:::serverTask
+        S_UPDATE_DB["Update SQLite: PC-01 Idle, PC-05 In-Use"]:::serverTask
+        S_DISPATCH_TARGET["Kirim AUTH_SUCCESS & UNLOCK ke PC-05"]:::serverTask
+    end
+
+    subgraph LANE_CLIENTS ["PERILAKU PERANGKAT KLIEN"]
+        direction LR
+        C_OLD_LOCK["PC-01: Langsung Terkunci Kembali ke Layar Kiosk"]:::clientTask
+        C_NEW_UNLOCK["PC-05: Terbuka Otomatis dengan Durasi Utuh"]:::endNode
+    end
+
+    K_REQ --> K_ACTION --> K_SELECT_TARGET --> K_CONFIRM
+    K_CONFIRM --> S_HOLD_SESSION --> S_RESET_SOURCE --> S_UPDATE_DB --> S_DISPATCH_TARGET
+    S_RESET_SOURCE --> C_OLD_LOCK
+    S_DISPATCH_TARGET --> C_NEW_UNLOCK
+
+    style LANE_KASIR_TRANSFER fill:#17191c,stroke:#f4b400,stroke-width:1.5px,stroke-dasharray: 4 4;
+    style LANE_ENGINE_TRANSFER fill:#111315,stroke:#76b900,stroke-width:1.5px,stroke-dasharray: 4 4;
+    style LANE_CLIENTS fill:#111315,stroke:#38bdf8,stroke-width:1.5px,stroke-dasharray: 4 4;`,
+
+      tab5: `flowchart LR
+    classDef eventNode fill:#17191c,stroke:#76b900,stroke-width:2px,color:#f5f5f5;
+    classDef clientTask fill:#111315,stroke:#38bdf8,stroke-width:2px,color:#f5f5f5,font-weight:700;
+    classDef kasirTask fill:#17191c,stroke:#f4b400,stroke-width:2px,color:#f5f5f5,font-weight:700;
+    classDef serverTask fill:#111315,stroke:#76b900,stroke-width:2px,color:#f5f5f5,font-weight:700;
+    classDef decisionNode fill:#1d2024,stroke:#f4b400,stroke-width:2.5px,color:#f5f5f5,font-weight:700;
+    classDef endNode fill:#17191c,stroke:#0fa336,stroke-width:2.5px,color:#f5f5f5,font-weight:700;
+    classDef rejectNode fill:#17191c,stroke:#e52020,stroke-width:2px,color:#e52020,font-weight:700;
+
+    subgraph LANE_CLIENT_POS ["KLIEN: FLOATING WIDGET MENU"]
+        direction LR
+        P_OPEN(["Buka Tab Pesan F&B"]):::eventNode
+        P_BROWSE["Pilih Menu Makanan & Minuman"]:::clientTask
+        P_METHOD{"Metode Pembayaran"}:::decisionNode
+        P_PAY_CASH["Bayar Tunai di Kasir"]:::clientTask
+        P_PAY_BALANCE["Potong Saldo Member"]:::clientTask
+        P_SUBMIT["Kirim OpCode.ORDER_REQUEST via WebSocket"]:::clientTask
+        P_NOTIF_SUCCESS["Terima Notifikasi: Pesanan Diproses"]:::endNode
+        P_NOTIF_REJECT["Terima Notifikasi: Pesanan Ditolak"]:::rejectNode
+    end
+
+    subgraph LANE_SERVER_POS ["KASIR: POS VIEW & APPROVAL"]
+        direction LR
+        K_RECV_ORDER["Order Masuk ke Antrean POSView Kasir"]:::serverTask
+        K_AUDIO["Bunyikan Notifikasi Audio Order Baru"]:::kasirTask
+        K_DECIDE{"Kasir Meninjau Order"}:::decisionNode
+        K_APPROVE["Setujui Pesanan & Cetak Struk Dapur"]:::kasirTask
+        K_REJECT["Tolak Pesanan (Stok Habis / Batal)"]:::rejectNode
+        K_RECORD_LOG["Catat Transaksi ke SQLite OrderItems & Logs"]:::serverTask
+    end
+
+    P_OPEN --> P_BROWSE --> P_METHOD
+    P_METHOD -->|"Tunai"| P_PAY_CASH --> P_SUBMIT
+    P_METHOD -->|"Saldo"| P_PAY_BALANCE --> P_SUBMIT
+
+    P_SUBMIT --> K_RECV_ORDER --> K_AUDIO --> K_DECIDE
+    K_DECIDE -->|"Setuju"| K_APPROVE --> K_RECORD_LOG --> P_NOTIF_SUCCESS
+    K_DECIDE -->|"Tolak"| K_REJECT --> P_NOTIF_REJECT
+
+    style LANE_CLIENT_POS fill:#111315,stroke:#38bdf8,stroke-width:1.5px,stroke-dasharray: 4 4;
+    style LANE_SERVER_POS fill:#17191c,stroke:#f4b400,stroke-width:1.5px,stroke-dasharray: 4 4;`,
+
+      tab6: `flowchart LR
+    classDef eventNode fill:#17191c,stroke:#76b900,stroke-width:2px,color:#f5f5f5;
+    classDef guardTask fill:#111315,stroke:#a855f7,stroke-width:2px,color:#f5f5f5,font-weight:700;
+    classDef decisionNode fill:#1d2024,stroke:#f4b400,stroke-width:2.5px,color:#f5f5f5,font-weight:700;
+    classDef actionNode fill:#17191c,stroke:#e52020,stroke-width:2px,color:#e52020,font-weight:700;
+    classDef secureNode fill:#17191c,stroke:#0fa336,stroke-width:2.5px,color:#f5f5f5,font-weight:700;
+
+    subgraph LANE_SECURITY ["CLIENT SECURITY ENGINE & APP GUARD"]
+        direction LR
+        SEC_START(["Inisialisasi Keamanan Windows Provisioning"]):::eventNode
+        SEC_REG["Terapkan Registry Blocker (Disable TaskMgr)"]:::guardTask
+        SEC_POLL["ProcessWatcherGuard Loop (Setiap 1000ms)"]:::guardTask
+        SEC_DETECT{"Deteksi Proses Terlarang / Tamper?"}:::decisionNode
+        SEC_KILL["KillProcess: taskmgr.exe, regedit.exe, cmd.exe"]:::actionNode
+        SEC_OVERLAY{"Status Sesi Workstation"}:::decisionNode
+        SEC_LOCK_FULL["Tampilkan Fullscreen Transparent-Blocking Kiosk"]:::guardTask
+        SEC_ACTIVE_PASS["Izinkan Click-Through ke Game & Desktop Player"]:::secureNode
+    end
+
+    SEC_START --> SEC_REG --> SEC_POLL --> SEC_DETECT
+    SEC_DETECT -->|"Terdeteksi Tamper"| SEC_KILL --> SEC_POLL
+    SEC_DETECT -->|"Aman"| SEC_OVERLAY
+
+    SEC_OVERLAY -->|"Layar Terkunci (Available/AFK)"| SEC_LOCK_FULL
+    SEC_OVERLAY -->|"Sesi Aktif (Online)"| SEC_ACTIVE_PASS
+
+    style LANE_SECURITY fill:#111315,stroke:#a855f7,stroke-width:1.5px,stroke-dasharray: 4 4;`,
+
+      tab7: `flowchart LR
+    classDef eventNode fill:#17191c,stroke:#76b900,stroke-width:2px,color:#f5f5f5;
+    classDef kasirTask fill:#17191c,stroke:#f4b400,stroke-width:2px,color:#f5f5f5,font-weight:700;
+    classDef serverTask fill:#111315,stroke:#76b900,stroke-width:2px,color:#f5f5f5,font-weight:700;
+    classDef clientTask fill:#111315,stroke:#38bdf8,stroke-width:2px,color:#f5f5f5,font-weight:700;
+    classDef endNode fill:#17191c,stroke:#0fa336,stroke-width:2.5px,color:#f5f5f5,font-weight:700;
+
+    subgraph LANE_KASIR_REMOTE ["KASIR: DASHBOARD CONTROL & TOOLS"]
+        direction LR
+        R_TRIGGER(["Pilih Workstation & Aksi Remote"]):::eventNode
+        R_ACTION{"Pilih Perintah Remote"}:::kasirTask
+        R_CMD_RESTART["Kirim Perintah Restart PC"]:::kasirTask
+        R_CMD_SHUTDOWN["Kirim Perintah Shutdown PC"]:::kasirTask
+        R_CMD_BROADCAST["Broadcast Pesan / Peringatan Operator"]:::kasirTask
+        R_CMD_VNC["Request Remote Screen / Screenshot"]:::kasirTask
+    end
+
+    subgraph LANE_CLIENT_REMOTE ["KLIEN: EKSEKUSI NATIVE WINDOWS"]
+        direction LR
+        RC_RECV["Klien Terima OpCode.REMOTE_COMMAND"]:::clientTask
+        RC_EXEC_RESTART["Klien Jalankan shutdown.exe -r -t 0"]:::clientTask
+        RC_EXEC_SHUTDOWN["Klien Jalankan shutdown.exe -s -t 0"]:::clientTask
+        RC_SHOW_MSG["Tampilkan Banner Broadcast di Layar Player"]:::clientTask
+        RC_SEND_SCREEN["Capture Desktop Frame & Kirim ke Kasir"]:::endNode
+    end
+
+    R_TRIGGER --> R_ACTION
+    R_ACTION -->|"Restart"| R_CMD_RESTART --> RC_RECV --> RC_EXEC_RESTART
+    R_ACTION -->|"Shutdown"| R_CMD_SHUTDOWN --> RC_RECV --> RC_EXEC_SHUTDOWN
+    R_ACTION -->|"Broadcast"| R_CMD_BROADCAST --> RC_RECV --> RC_SHOW_MSG
+    R_ACTION -->|"VNC / Screen"| R_CMD_VNC --> RC_RECV --> RC_SEND_SCREEN
+
+    style LANE_KASIR_REMOTE fill:#17191c,stroke:#f4b400,stroke-width:1.5px,stroke-dasharray: 4 4;
+    style LANE_CLIENT_REMOTE fill:#111315,stroke:#38bdf8,stroke-width:1.5px,stroke-dasharray: 4 4;`,
+
+      tab8: `flowchart LR
+    classDef eventNode fill:#17191c,stroke:#76b900,stroke-width:2px,color:#f5f5f5;
+    classDef kasirTask fill:#17191c,stroke:#f4b400,stroke-width:2px,color:#f5f5f5,font-weight:700;
+    classDef serverTask fill:#111315,stroke:#76b900,stroke-width:2px,color:#f5f5f5,font-weight:700;
+    classDef decisionNode fill:#1d2024,stroke:#f4b400,stroke-width:2.5px,color:#f5f5f5,font-weight:700;
+    classDef endNode fill:#17191c,stroke:#0fa336,stroke-width:2.5px,color:#f5f5f5,font-weight:700;
+
+    subgraph LANE_KASIR_SHIFT ["KASIR: OPERASIONAL PERGANTIAN SHIFT"]
+        direction LR
+        SH_OPEN(["Buka Shift (Modal Kas Awal)"]):::eventNode
+        SH_TRANSACT["Catat Pendapatan Billing, Topup & F&B"]:::kasirTask
+        SH_CLOSE_REQ["Tutup Shift & Input Kas Fisik di Laci"]:::kasirTask
+        SH_RECONCILE{"Bandingkan Kas Fisik vs Sistem"}:::decisionNode
+        SH_MATCH["Status Shift: Seimbang (Sesuai)"]:::endNode
+        SH_DIFF["Status Shift: Selisih Lebih / Kurang"]:::kasirTask
+        SH_PRINT["Cetak Struk Rekapitulasi Shift Handover"]:::endNode
+    end
+
+    subgraph LANE_SERVER_LOGS ["SERVER: AUDIT & CLOUD REKAP"]
+        direction LR
+        SL_STORE["Simpan ke SQLite ShiftRecords & TransactionLogs"]:::serverTask
+        SL_CLOUD_SYNC["Sync Rekap ke Supabase logs Table"]:::serverTask
+    end
+
+    SH_OPEN --> SH_TRANSACT --> SH_CLOSE_REQ --> SH_RECONCILE
+    SH_RECONCILE -->|"Kas Sesuai"| SH_MATCH
+    SH_RECONCILE -->|"Ada Selisih"| SH_DIFF
+    SH_MATCH --> SH_PRINT --> SL_STORE --> SL_CLOUD_SYNC
+    SH_DIFF --> SH_PRINT
+
+    style LANE_KASIR_SHIFT fill:#17191c,stroke:#f4b400,stroke-width:1.5px,stroke-dasharray: 4 4;
+    style LANE_SERVER_LOGS fill:#111315,stroke:#76b900,stroke-width:1.5px,stroke-dasharray: 4 4;`
+    };
+
+    const SUMMARIES = {
+      tab1: {
+        t1: "1. Tiga Pintu Masuk Kiosk",
+        d1: "Klien mendukung 3 metode login: Akun Member, Kode Kupon/Voucher prabayar, dan Kredensial Master Admin untuk teknisi.",
+        t2: "2. Verifikasi Cepat & Tepat",
+        d2: "Server memeriksa validitas akun, status blacklist/kunci, dan batas minimum saldo member (>= Rp 2.000) sebelum membuka layar.",
+        t3: "3. Transisi State Instan",
+        d3: "Saat validasi sukses, layar Kiosk langsung membuka kunci dan memunculkan Floating Capsule berisi sisa durasi dan menu."
+      },
+      tab2: {
+        t1: "1. Otoritas Server Mutlak",
+        d1: "Tick 1000ms server authoritative menentukan sisa waktu dan biaya. Klien tidak bisa memanipulasi jam lokal komputer.",
+        t2: "2. Warning Audio Web Tone",
+        d2: "Klien memicu audio alert sintetis tanpa dependensi file eksternal pada sisa durasi 5 menit dan 1 menit.",
+        t3: "3. Auto-Cutoff & Wipe Temp",
+        d3: "Saat durasi habis (0 detik), server langsung memutus sesi, mengunci layar klien, dan membersihkan jejak login/browser."
+      },
+      tab3: {
+        t1: "1. Zero Idle (Prioritas Fisik)",
+        d1: "Bilik kosong langsung diberikan ke pelanggan yang sudah hadir di warnet jika booker belum tiba di lokasi.",
+        t2: "2. Dua Mode Booking",
+        d2: "Mode 1 mengantre bilik spesifik yang sedang aktif dimainkan; Mode 2 memesan slot jam kedatangan tertentu.",
+        t3: "3. Realokasi Booker Lunas",
+        d3: "Booker bayar lunas dijamin mendapatkan unit PC pengganti saat tiba tanpa potongan durasi sedikit pun."
+      },
+      tab4: {
+        t1: "1. Drag-and-Drop Kasir",
+        d1: "Kasir dapat memindahkan player ke PC lain hanya dengan mendrag workstation ke bilik tujuan pada denah layout.",
+        t2: "2. Migrasi State Instan",
+        d2: "Sisa detik, paket aktif, dan total biaya langsung dimigrasikan ke workstation baru tanpa perlu login ulang.",
+        t3: "3. Kunci Otomatis Bilik Lama",
+        d3: "Bilik asal otomatis terkunci kembali ke mode standby, sementara bilik baru langsung terbuka untuk player."
+      },
+      tab5: {
+        t1: "1. In-App Floating POS Menu",
+        d1: "Player memesan makanan & minuman langsung dari layar desktop tanpa perlu meninggalkan game yang sedang berjalan.",
+        t2: "2. Persetujuan Kasir Realtime",
+        d2: "Order masuk ke antrean kasir disertai notifikasi audio; kasir dapat menyetujui atau menolak jika stok habis.",
+        t3: "3. Pembayaran Fleksibel",
+        d3: "Mendukung opsi bayar tunai di meja kasir maupun pemotongan otomatis dari saldo akun member."
+      },
+      tab6: {
+        t1: "1. Registry & Task Manager Lock",
+        d1: "Klien memblokir akses ke Task Manager, Registry Editor, dan Command Prompt saat komputer berada dalam status terkunci.",
+        t2: "2. ProcessWatcher Loop 1 Detik",
+        d2: "Guard loop secara aktif mendeteksi dan menghentikan (kill) aplikasi terlarang atau upaya bypass layar kunci.",
+        t3: "3. Dynamic Overlay Switcher",
+        d3: "Overlay transparan otomatis mengizinkan input klik penuh ke game saat sesi online dan memblokir total saat idle/AFK."
+      },
+      tab7: {
+        t1: "1. Perintah Native Windows",
+        d1: "Server dapat mengeksekusi restart dan shutdown instan ke workstation klien melalui protokol aman.",
+        t2: "2. Broadcast & Pengumuman",
+        d2: "Kasir dapat mengirimkan pesan teks darurat atau broadcast ke satu PC maupun seluruh bilik secara serentak.",
+        t3: "3. Remote Screen & VNC",
+        d3: "Kasir dapat memantau tampilan desktop klien secara remote untuk membantu troubleshooting player."
+      },
+      tab8: {
+        t1: "1. Audit Kas Fisik vs Sistem",
+        d1: "Sistem mencocokkan total uang tunai di laci kasir dengan catatan transaksi billing, topup, dan F&B.",
+        t2: "2. Deteksi Selisih Kasir",
+        d2: "Setiap kelebihan atau kekurangan uang kas tercatat otomatis dalam laporan handover pergantian shift.",
+        t3: "3. Sinkronisasi Cloud Supabase",
+        d3: "Laporan penutupan shift dan rekap pendapatan otomatis disinkronkan ke cloud untuk dipantau pemilik warnet."
+      }
+    };
+
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        background: '#111315',
+        primaryColor: '#17191c',
+        primaryTextColor: '#f5f5f5',
+        primaryBorderColor: '#76b900',
+        lineColor: '#76b900',
+        secondaryColor: '#17191c',
+        tertiaryColor: '#1d2024',
+        fontFamily: 'Nunito, sans-serif',
+        fontSize: '15px'
+      },
+      flowchart: {
+        nodeSpacing: 45,
+        rankSpacing: 55,
+        padding: 18,
+        useMaxWidth: false,
+        htmlLabels: true
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const viewport = document.getElementById('viewport');
+      const target = document.getElementById('panzoom-target');
+      const renderBox = document.getElementById('mermaid-render-box');
+      const btnZoomIn = document.getElementById('btnZoomIn');
+      const btnZoomOut = document.getElementById('btnZoomOut');
+      const btnFit = document.getElementById('btnFit');
+      const btnReset = document.getElementById('btnReset');
+      const zoomLevelText = document.getElementById('zoomLevel');
+      const tabBtns = document.querySelectorAll('.tab-btn');
+
+      // Summary Card Elements
+      const card1T = document.getElementById('summaryCard1Title');
+      const card1D = document.getElementById('summaryCard1Desc');
+      const card2T = document.getElementById('summaryCard2Title');
+      const card2D = document.getElementById('summaryCard2Desc');
+      const card3T = document.getElementById('summaryCard3Title');
+      const card3D = document.getElementById('summaryCard3Desc');
+
+      let scale = 1;
+      let translateX = 0;
+      let translateY = 0;
+      let isDragging = false;
+      let startX = 0;
+      let startY = 0;
+
+      function updateTransform() {
+        target.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+        if (zoomLevelText) {
+          zoomLevelText.textContent = `${Math.round(scale * 100)}%`;
+        }
+      }
+
+      function fitToScreen() {
+        const svg = renderBox.querySelector('svg');
+        if (!svg) return;
+
+        svg.style.maxWidth = 'none';
+        svg.style.height = 'auto';
+
+        const vb = svg.viewBox ? svg.viewBox.baseVal : null;
+        const svgW = (vb && vb.width > 0) ? vb.width : (svg.getBBox ? svg.getBBox().width : svg.clientWidth);
+        const svgH = (vb && vb.height > 0) ? vb.height : (svg.getBBox ? svg.getBBox().height : svg.clientHeight);
+
+        if (!svgW || !svgH) return;
+
+        const vRect = viewport.getBoundingClientRect();
+        const targetW = vRect.width * 0.94;
+        const targetH = vRect.height * 0.86;
+
+        const scaleX = targetW / svgW;
+        const scaleY = targetH / svgH;
+
+        scale = Math.min(scaleX, scaleY);
+        scale = Math.max(0.3, Math.min(scale, 5.0));
+
+        translateX = 0;
+        translateY = 0;
+        updateTransform();
+      }
+
+      function zoom(delta, clientX, clientY) {
+        const oldScale = scale;
+        const newScale = Math.min(Math.max(0.2, scale + delta), 5.0);
+        if (newScale === oldScale) return;
+
+        if (clientX !== undefined && clientY !== undefined) {
+          const rect = viewport.getBoundingClientRect();
+          const offsetX = clientX - rect.left - rect.width / 2;
+          const offsetY = clientY - rect.top - rect.height / 2;
+          translateX -= (offsetX - translateX) * (newScale / oldScale - 1);
+          translateY -= (offsetY - translateY) * (newScale / oldScale - 1);
+        }
+        scale = newScale;
+        updateTransform();
+      }
+
+      let renderCount = 0;
+      async function loadDiagram(tabKey) {
+        renderCount++;
+        const chartCode = DIAGRAMS[tabKey];
+        if (!chartCode) return;
+
+        try {
+          renderBox.innerHTML = '';
+          const uniqueId = `mermaid-svg-${tabKey}-${renderCount}`;
+          const { svg } = await mermaid.render(uniqueId, chartCode);
+          renderBox.innerHTML = svg;
+          setTimeout(fitToScreen, 40);
+
+          // Update Summary Cards
+          const sm = SUMMARIES[tabKey];
+          if (sm) {
+            card1T.textContent = sm.t1;
+            card1D.textContent = sm.d1;
+            card2T.textContent = sm.t2;
+            card2D.textContent = sm.d2;
+            card3T.textContent = sm.t3;
+            card3D.textContent = sm.d3;
+          }
+        } catch (err) {
+          console.error(`[MERMAID ERROR] Tab ${tabKey}:`, err);
+        }
+      }
+
+      // Initial Load Tab 1
+      await loadDiagram('tab1');
+
+      // Tab Buttons Listener
+      tabBtns.forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const tabId = btn.getAttribute('data-tab');
+
+          tabBtns.forEach(b => {
+            b.className = 'tab-btn px-3.5 py-2 bg-[#111315] hover:bg-[#17191c] text-[#b8bcc2] hover:text-[#f5f5f5] border border-[#2b2f34] font-bold text-xs rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5';
+          });
+          btn.className = 'tab-btn px-3.5 py-2 bg-[#76b900] text-[#090a0b] font-extrabold text-xs rounded-xl transition-all shadow-md whitespace-nowrap flex items-center gap-1.5';
+
+          await loadDiagram(tabId);
+        });
+      });
+
+      // Pan & Zoom Listeners
+      viewport.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 0.18 : -0.18;
+        zoom(delta, e.clientX, e.clientY);
+      }, { passive: false });
+
+      viewport.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        isDragging = true;
+        startX = e.clientX - translateX;
+        startY = e.clientY - translateY;
+        viewport.classList.add('cursor-grabbing');
+        viewport.classList.remove('cursor-grab');
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        translateX = e.clientX - startX;
+        translateY = e.clientY - startY;
+        updateTransform();
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (isDragging) {
+          isDragging = false;
+          viewport.classList.remove('cursor-grabbing');
+          viewport.classList.add('cursor-grab');
+        }
+      });
+
+      // Touch events support
+      let initialTouchDist = 0;
+      viewport.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+          isDragging = true;
+          startX = e.touches[0].clientX - translateX;
+          startY = e.touches[0].clientY - translateY;
+        } else if (e.touches.length === 2) {
+          isDragging = false;
+          initialTouchDist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+        }
+      }, { passive: true });
+
+      window.addEventListener('touchmove', (e) => {
+        if (isDragging && e.touches.length === 1) {
+          translateX = e.touches[0].clientX - startX;
+          translateY = e.touches[0].clientY - startY;
+          updateTransform();
+        } else if (e.touches.length === 2 && initialTouchDist > 0) {
+          const dist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          const factor = dist / initialTouchDist;
+          scale = Math.min(Math.max(0.2, scale * (factor > 1 ? 1.03 : 0.97)), 5.0);
+          initialTouchDist = dist;
+          updateTransform();
+        }
+      }, { passive: true });
+
+      window.addEventListener('touchend', () => {
+        isDragging = false;
+        initialTouchDist = 0;
+      });
+
+      btnZoomIn.addEventListener('click', () => zoom(0.25));
+      btnZoomOut.addEventListener('click', () => zoom(-0.25));
+      btnFit.addEventListener('click', fitToScreen);
+      btnReset.addEventListener('click', () => {
+        scale = 1;
+        translateX = 0;
+        translateY = 0;
+        updateTransform();
+      });
+
+      window.addEventListener('resize', () => {
+        fitToScreen();
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-electron/
+release/
+.dev-runtime/
+build/
+bin/
+coverage/
+*.exe
+*.dll
+*.msi
+*.dmp
+*.zip
+*.rcc
+*.qm
+
+# Local runtime data: SQLite DB, backups, per-PC config
+data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+client-config.json
+.client-config_backup.json
+
+# Secrets & certificates
+.env
+.env.*
+!.env.example
+*.pem
+*.pfx
+certs/
+supabase/.temp/
+
+# Local only: reverse engineering research, legacy binaries, agent notes
+_local/
+scraped_data/
+tools/
+warnet-policy/
+docs/screenshots/
+AGENTS.md
+AI_DEVELOPMENT_CONTRACT.md
+MEMORY.md
+TASK_LIST.md
+CHANGELOG.md
+.cursorrules
+*.bak
+
+# Generated tooling output
+graphify-out/
+.playwright-mcp/
+
+# Logs
+*.log
+
+# OS & editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.sw?

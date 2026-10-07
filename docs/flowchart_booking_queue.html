@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GC-Hub - Flowchart Sistem Antrean Booking vs Walk-In</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Nunito', sans-serif;
+      background-color: #090a0b;
+      color: #f5f5f5;
+    }
+    .mermaid {
+      display: flex;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body class="p-3 md:p-6 bg-[#090a0b] text-[#f5f5f5]">
+
+  <div class="w-full max-w-[96vw] mx-auto space-y-4">
+    
+    <!-- HEADER (GC-HUB DESIGN SYSTEM) -->
+    <div class="text-center space-y-2 border-b border-[#2b2f34] pb-4">
+      <div class="inline-flex items-center space-x-2 px-3 py-1 bg-[#76b900]/10 border border-[#76b900]/30 rounded-full text-[#76b900] text-xs font-extrabold uppercase tracking-wider">
+        <span class="w-2 h-2 rounded-full bg-[#76b900] animate-pulse"></span>
+        <span>Prinsip Kaizen: Antrean PC Aktif &amp; Reservasi Jam Fleksibel</span>
+      </div>
+      <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight text-[#f5f5f5]">
+        Alur Sistem Antrean: Antre PC Terpakai vs Booking Jam Tertentu
+      </h1>
+      <p class="text-sm text-[#b8bcc2] max-w-3xl mx-auto">
+        <strong class="text-[#f5f5f5]">Fungsi Utama:</strong> Antre di PC yang sedang dimainkan orang. <strong class="text-[#76b900]">Second Choice:</strong> Booking jam tertentu (datang sesuai jam, alokasi PC fleksibel / floating unit).
+      </p>
+    </div>
+
+    <!-- MERMAID DIAGRAM CONTAINER -->
+    <div id="diagramContainer" class="relative w-full bg-[#111315] border border-[#2b2f34] rounded-2xl shadow-2xl overflow-hidden">
+      
+      <!-- FLOATING TOOLBAR CONTROLS -->
+      <div class="absolute top-4 right-4 z-20 flex items-center gap-2 bg-[#17191c]/90 backdrop-blur-md border border-[#2b2f34] px-3 py-1.5 rounded-xl shadow-xl">
+        <span id="zoomLevel" class="text-xs font-mono font-bold text-[#76b900] min-w-[45px] text-center">100%</span>
+        <div class="h-4 w-px bg-[#2b2f34]"></div>
+        <button id="btnZoomIn" title="Zoom In (+)" class="w-8 h-8 flex items-center justify-center bg-[#1d2024] hover:bg-[#24282d] text-[#f5f5f5] border border-[#2b2f34] rounded-lg transition-colors font-bold text-base select-none">
+          +
+        </button>
+        <button id="btnZoomOut" title="Zoom Out (-)" class="w-8 h-8 flex items-center justify-center bg-[#1d2024] hover:bg-[#24282d] text-[#f5f5f5] border border-[#2b2f34] rounded-lg transition-colors font-bold text-base select-none">
+          &minus;
+        </button>
+        <button id="btnFit" title="Fit to Screen" class="px-3 h-8 flex items-center justify-center bg-[#76b900] hover:bg-[#85cf00] text-[#090a0b] font-black rounded-lg transition-colors text-xs select-none">
+          Fit Layar
+        </button>
+        <button id="btnReset" title="Reset 100%" class="px-2.5 h-8 flex items-center justify-center bg-[#1d2024] hover:bg-[#24282d] text-[#f5f5f5] border border-[#2b2f34] rounded-lg transition-colors text-xs font-bold select-none">
+          100%
+        </button>
+        <div class="h-4 w-px bg-[#2b2f34] hidden sm:block"></div>
+        <span class="text-[11px] text-[#777d84] px-1 hidden lg:inline select-none">Scroll: Zoom &bull; Drag: Geser</span>
+      </div>
+
+      <!-- VIEWPORT -->
+      <div id="viewport" class="w-full h-[72vh] min-h-[560px] flex items-center justify-center cursor-grab select-none overflow-hidden relative">
+        <div id="panzoom-target" class="origin-center transition-transform duration-75 inline-block">
+          <div class="mermaid">
+flowchart LR
+    %% BPMN GC-Hub Styling Classes
+    classDef eventNode fill:#17191c,stroke:#76b900,stroke-width:2px,color:#f5f5f5;
+    classDef bookerTask fill:#111315,stroke:#38bdf8,stroke-width:2px,color:#f5f5f5,font-weight:700;
+    classDef walkinTask fill:#111315,stroke:#0fa336,stroke-width:2px,color:#f5f5f5,font-weight:700;
+    classDef kasirTask fill:#17191c,stroke:#f4b400,stroke-width:2px,color:#f5f5f5,font-weight:700;
+    classDef kasirDecision fill:#1d2024,stroke:#f4b400,stroke-width:2.5px,color:#f5f5f5,font-weight:700;
+    classDef sysTask fill:#111315,stroke:#76b900,stroke-width:2px,color:#f5f5f5,font-weight:700;
+    classDef endNode fill:#17191c,stroke:#0fa336,stroke-width:2.5px,color:#f5f5f5,font-weight:700;
+    classDef cancelNode fill:#17191c,stroke:#e52020,stroke-width:2px,color:#f5f5f5,font-weight:700;
+
+    %% SWIMLANE 1: PELANGGAN BOOKER (ONLINE)
+    subgraph LANE_BOOKER ["LANE 1: PELANGGAN BOOKER (ONLINE)"]
+        direction LR
+        B_START(["Mulai Booking Online"]):::eventNode
+        B_MODE{"Pilih Jenis Booking"}:::kasirDecision
+        B_QUEUE_BUSY["Mode 1 (Utama): Antre PC Terpakai<br/><i>(Target PC-01 Sedang Dimainkan)</i>"]:::bookerTask
+        B_TIME_SLOT["Mode 2 (Sekunder): Booking Jam Tertentu<br/><i>(Datang Jam X, Unit PC Fleksibel)</i>"]:::bookerTask
+        B_PAY_METHOD{"Pilihan Pembayaran"}:::kasirDecision
+        B_PAID["BAYAR LUNAS (QRIS / E-Wallet)<br/><i>Hak Main Dijamin 100%</i>"]:::bookerTask
+        B_UNPAID["BELUM BAYAR (Pesan Slot Saja)<br/><i>Hangus Jika Terisi Walk-In</i>"]:::bookerTask
+        B_ARRIVE["Tiba di Lokasi Warnet"]:::bookerTask
+        B_INPUT_ORIG["Input PIN di PC Target (PC-01)"]:::bookerTask
+        B_INPUT_ANY["Input PIN di PC yang Dialokasikan"]:::bookerTask
+        B_END(["Sesi Booker Aktif (Durasi Utuh)"]):::endNode
+        B_CANCEL(["Booking Dibatalkan (Nol Beban)"]):::cancelNode
+    end
+
+    %% SWIMLANE 2: PELANGGAN WALK-IN (FISIK)
+    subgraph LANE_WALKIN ["LANE 2: PELANGGAN WALK-IN (FISIK LOKASI)"]
+        direction LR
+        W_START(["Tiba Fisik di Warnet"]):::eventNode
+        W_WAIT["Standby Menunggu Bilik"]:::walkinTask
+        W_CLAIM["Menempati Bilik PC-01"]:::walkinTask
+        W_PLAY["Sesi Walk-In Aktif (Zero Idle)"]:::walkinTask
+        W_END(["Sesi Selesai"]):::endNode
+    end
+
+    %% SWIMLANE 3: KASIR / OPERATOR
+    subgraph LANE_KASIR ["LANE 3: KASIR / OPERATOR (KONTROL GRACE &amp; ALOKASI)"]
+        direction LR
+        K_EVAL_QUEUE{"PC-01 Selesai Sesi:<br/>Apakah Booker Mode 1 Hadir?"}:::kasirDecision
+        K_CHECK_WALKIN{"Cek Walk-In Standby?"}:::kasirDecision
+        K_CHECK_PAID{"Validasi Status Booking"}:::kasirDecision
+        K_OVERRIDE["Izinkan Walk-In Pakai PC-01<br/><i>(Alihkan Hak Bilik Fisik)</i>"]:::kasirTask
+        K_HANDLE_TIME_SLOT["Alokasikan PC Kosong Saat Booker Tiba<br/><i>(Bisa PC-01, PC-02, atau PC-03)</i>"]:::kasirTask
+        K_REASSIGN["Realokasi Booker Lunas ke PC Lain<br/><i>(Wajib Karena Sudah Bayar)</i>"]:::kasirTask
+        K_DISCARD["Batalkan Slot Antrean Belum Bayar<br/><i>(Nol Kerugian Finansial)</i>"]:::kasirTask
+    end
+
+    %% SWIMLANE 4: SISTEM GC-HUB & BILIK PC
+    subgraph LANE_SISTEM ["LANE 4: SISTEM GC-HUB &amp; BILIK PC (ENGINE)"]
+        direction LR
+        S_PC_BUSY["Player Selesai Main di PC-01"]:::eventNode
+        S_TIME_EVENT["Jadwal Jam Booking Tiba"]:::eventNode
+        S_UNLOCK_PC1["Unlock Workstation PC-01"]:::sysTask
+        S_UNLOCK_WALKIN["Unlock PC-01 untuk Walk-In"]:::sysTask
+        S_TRANSFER_MAP["Transfer Session Mapping ke PC Baru"]:::sysTask
+        S_UNLOCK_ANY["Unlock Workstation PC Baru"]:::sysTask
+    end
+
+    %% RELASI FLOW
+    B_START --> B_MODE
+    B_MODE -->|"Mode 1: Antre PC Aktif"| B_QUEUE_BUSY
+    B_MODE -->|"Mode 2: Booking Jam"| B_TIME_SLOT
+    
+    B_QUEUE_BUSY --> B_PAY_METHOD
+    B_TIME_SLOT --> B_PAY_METHOD
+    
+    B_PAY_METHOD -->|"Bayar Lunas"| B_PAID
+    B_PAY_METHOD -->|"Belum Bayar"| B_UNPAID
+
+    W_START --> W_WAIT
+
+    %% Alur Mode 1: PC-01 Selesai Main
+    S_PC_BUSY --> K_EVAL_QUEUE
+    B_PAID -.->|"Antrean PC-01"| K_EVAL_QUEUE
+    B_UNPAID -.->|"Antrean PC-01"| K_EVAL_QUEUE
+    W_WAIT -.->|"Walk-In Siap Main"| K_CHECK_WALKIN
+
+    K_EVAL_QUEUE -->|"Ya (Sudah Hadir)"| B_INPUT_ORIG
+    B_INPUT_ORIG --> S_UNLOCK_PC1 --> B_END
+
+    K_EVAL_QUEUE -->|"Tidak (Belum Hadir)"| K_CHECK_WALKIN
+    K_CHECK_WALKIN -->|"Ada Walk-In"| K_OVERRIDE
+    K_OVERRIDE --> W_CLAIM --> S_UNLOCK_WALKIN --> W_PLAY --> W_END
+
+    K_OVERRIDE --> K_CHECK_PAID
+    K_CHECK_PAID -->|"Belum Bayar"| K_DISCARD --> B_CANCEL
+
+    K_CHECK_PAID -->|"Bayar Lunas"| W_PLAY
+    W_PLAY -.->|"Saat Booker Lunas Tiba"| B_ARRIVE
+    B_ARRIVE --> K_REASSIGN --> S_TRANSFER_MAP --> B_INPUT_ANY --> S_UNLOCK_ANY --> B_END
+
+    %% Alur Mode 2: Booking Jam Tertentu
+    S_TIME_EVENT --> K_HANDLE_TIME_SLOT
+    B_TIME_SLOT -.->|"Jadwal Tiba"| B_ARRIVE
+    B_ARRIVE --> K_HANDLE_TIME_SLOT
+    K_HANDLE_TIME_SLOT --> S_UNLOCK_ANY --> B_END
+
+    %% Styling Subgraphs GC-Hub Palette
+    style LANE_BOOKER fill:#111315,stroke:#38bdf8,stroke-width:1.5px,stroke-dasharray: 4 4;
+    style LANE_WALKIN fill:#111315,stroke:#0fa336,stroke-width:1.5px,stroke-dasharray: 4 4;
+    style LANE_KASIR fill:#17191c,stroke:#f4b400,stroke-width:1.5px,stroke-dasharray: 4 4;
+    style LANE_SISTEM fill:#111315,stroke:#76b900,stroke-width:1.5px,stroke-dasharray: 4 4;
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- EXPLANATION CARDS (GC-HUB ATOMIC STYLE) -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+      
+      <!-- Card 1 -->
+      <div class="p-4 bg-[#17191c] border border-[#2b2f34] rounded-xl space-y-2">
+        <div class="font-bold text-[#38bdf8] text-sm flex items-center space-x-2">
+          <svg class="w-4 h-4 text-[#38bdf8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" stroke-width="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21" stroke-width="2"></line>
+            <line x1="12" y1="17" x2="12" y2="21" stroke-width="2"></line>
+          </svg>
+          <span>1. Mode Utama: Antre PC Terpakai</span>
+        </div>
+        <p class="text-[#b8bcc2] leading-relaxed">
+          Target khusus PC yang sedang dimainkan player lain. Begitu sesi pemain tersebut habis, antrean booker dipicu. Jika booker belum tiba di lokasi, kasir langsung berikan ke walk-in.
+        </p>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="p-4 bg-[#17191c] border border-[#2b2f34] rounded-xl space-y-2">
+        <div class="font-bold text-[#f4b400] text-sm flex items-center space-x-2">
+          <svg class="w-4 h-4 text-[#f4b400]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
+            <polyline points="12 6 12 12 16 14" stroke-width="2"></polyline>
+          </svg>
+          <span>2. Second Choice: Booking Jam Tertentu</span>
+        </div>
+        <p class="text-[#b8bcc2] leading-relaxed">
+          Pesan jam kedatangan (misal jam 15:00). Pelanggan bebas datang sesuai jam, namun alokasi PC bersifat fleksibel (kasir berikan PC mana saja yang sedang kosong saat booker tiba).
+        </p>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="p-4 bg-[#17191c] border border-[#2b2f34] rounded-xl space-y-2">
+        <div class="font-bold text-[#76b900] text-sm flex items-center space-x-2">
+          <svg class="w-4 h-4 text-[#76b900]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+          <span>3. Realokasi Booker Lunas vs Hangus</span>
+        </div>
+        <p class="text-[#b8bcc2] leading-relaxed">
+          <strong class="text-[#f5f5f5]">Bayar Lunas:</strong> Dijamin dapat unit PC pengganti saat tiba dengan paket utuh. <strong class="text-[#f5f5f5]">Belum Bayar:</strong> Langsung dibatalkan tanpa utang jika walk-in masuk.
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        background: '#111315',
+        primaryColor: '#17191c',
+        primaryTextColor: '#f5f5f5',
+        primaryBorderColor: '#76b900',
+        lineColor: '#76b900',
+        secondaryColor: '#17191c',
+        tertiaryColor: '#1d2024',
+        fontFamily: 'Nunito, sans-serif',
+        fontSize: '15px'
+      },
+      flowchart: {
+        nodeSpacing: 45,
+        rankSpacing: 55,
+        padding: 18,
+        useMaxWidth: false,
+        htmlLabels: true
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const viewport = document.getElementById('viewport');
+      const target = document.getElementById('panzoom-target');
+      const btnZoomIn = document.getElementById('btnZoomIn');
+      const btnZoomOut = document.getElementById('btnZoomOut');
+      const btnFit = document.getElementById('btnFit');
+      const btnReset = document.getElementById('btnReset');
+      const zoomLevelText = document.getElementById('zoomLevel');
+
+      let scale = 1;
+      let translateX = 0;
+      let translateY = 0;
+      let isDragging = false;
+      let startX = 0;
+      let startY = 0;
+
+      function updateTransform() {
+        target.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+        if (zoomLevelText) {
+          zoomLevelText.textContent = `${Math.round(scale * 100)}%`;
+        }
+      }
+
+      function fitToScreen() {
+        const svg = document.querySelector('.mermaid svg');
+        if (!svg) return;
+
+        svg.style.maxWidth = 'none';
+        svg.style.height = 'auto';
+
+        const vb = svg.viewBox ? svg.viewBox.baseVal : null;
+        const svgW = (vb && vb.width > 0) ? vb.width : (svg.getBBox ? svg.getBBox().width : svg.clientWidth);
+        const svgH = (vb && vb.height > 0) ? vb.height : (svg.getBBox ? svg.getBBox().height : svg.clientHeight);
+
+        if (!svgW || !svgH) return;
+
+        const vRect = viewport.getBoundingClientRect();
+        const targetW = vRect.width * 0.94;
+        const targetH = vRect.height * 0.86;
+
+        const scaleX = targetW / svgW;
+        const scaleY = targetH / svgH;
+
+        scale = Math.min(scaleX, scaleY);
+        scale = Math.max(0.3, Math.min(scale, 5.0));
+
+        translateX = 0;
+        translateY = 0;
+        updateTransform();
+      }
+
+      function zoom(delta, clientX, clientY) {
+        const oldScale = scale;
+        const newScale = Math.min(Math.max(0.2, scale + delta), 5.0);
+        if (newScale === oldScale) return;
+
+        if (clientX !== undefined && clientY !== undefined) {
+          const rect = viewport.getBoundingClientRect();
+          const offsetX = clientX - rect.left - rect.width / 2;
+          const offsetY = clientY - rect.top - rect.height / 2;
+          translateX -= (offsetX - translateX) * (newScale / oldScale - 1);
+          translateY -= (offsetY - translateY) * (newScale / oldScale - 1);
+        }
+        scale = newScale;
+        updateTransform();
+      }
+
+      // Render mermaid and auto fit
+      await mermaid.run();
+      setTimeout(fitToScreen, 100);
+
+      // Pan & Zoom Listeners
+      viewport.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 0.18 : -0.18;
+        zoom(delta, e.clientX, e.clientY);
+      }, { passive: false });
+
+      viewport.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        isDragging = true;
+        startX = e.clientX - translateX;
+        startY = e.clientY - translateY;
+        viewport.classList.add('cursor-grabbing');
+        viewport.classList.remove('cursor-grab');
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        translateX = e.clientX - startX;
+        translateY = e.clientY - startY;
+        updateTransform();
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (isDragging) {
+          isDragging = false;
+          viewport.classList.remove('cursor-grabbing');
+          viewport.classList.add('cursor-grab');
+        }
+      });
+
+      // Touch events support
+      let initialTouchDist = 0;
+      viewport.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+          isDragging = true;
+          startX = e.touches[0].clientX - translateX;
+          startY = e.touches[0].clientY - translateY;
+        } else if (e.touches.length === 2) {
+          isDragging = false;
+          initialTouchDist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+        }
+      }, { passive: true });
+
+      window.addEventListener('touchmove', (e) => {
+        if (isDragging && e.touches.length === 1) {
+          translateX = e.touches[0].clientX - startX;
+          translateY = e.touches[0].clientY - startY;
+          updateTransform();
+        } else if (e.touches.length === 2 && initialTouchDist > 0) {
+          const dist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          const factor = dist / initialTouchDist;
+          scale = Math.min(Math.max(0.2, scale * (factor > 1 ? 1.03 : 0.97)), 5.0);
+          initialTouchDist = dist;
+          updateTransform();
+        }
+      }, { passive: true });
+
+      window.addEventListener('touchend', () => {
+        isDragging = false;
+        initialTouchDist = 0;
+      });
+
+      btnZoomIn.addEventListener('click', () => zoom(0.25));
+      btnZoomOut.addEventListener('click', () => zoom(-0.25));
+      btnFit.addEventListener('click', fitToScreen);
+      btnReset.addEventListener('click', () => {
+        scale = 1;
+        translateX = 0;
+        translateY = 0;
+        updateTransform();
+      });
+
+      window.addEventListener('resize', () => {
+        fitToScreen();
+      });
+    });
+  </script>
+</body>
+</html>

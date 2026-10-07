@@ -1,0 +1,120 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── GC Hub Design System Tokens ─────────────────────────────── */
+/* Values are RGB channels so Tailwind alpha modifiers (bg-primary/10) work.
+   Use as rgb(var(--gc-primary)). Palettes documented in DESIGN.md. */
+:root {
+  color-scheme: dark;
+  --gc-canvas: 11 18 20; /* #0B1214 */
+  --gc-surface-1: 15 23 25; /* #0F1719 */
+  --gc-surface-2: 21 32 35; /* #152023 */
+  --gc-surface-3: 27 42 46; /* #1B2A2E */
+  --gc-surface-carbon: 34 51 55; /* #223337 */
+  --gc-primary: 79 179 163; /* #4FB3A3 */
+  --gc-primary-hover: 99 196 180; /* #63C4B4 */
+  --gc-primary-dark: 61 149 135; /* #3D9587 */
+  --gc-on-primary: 15 23 25; /* #0F1719 */
+  --gc-hairline: 36 54 58; /* #24363A */
+  --gc-hairline-strong: 49 71 76; /* #31474C */
+  --gc-text-primary: 227 236 234; /* #E3ECEA */
+  --gc-text-secondary: 180 195 193; /* #B4C3C1 */
+  --gc-text-muted: 134 153 154; /* #86999A */
+  --gc-text-disabled: 90 108 110; /* #5A6C6E */
+  --gc-success: 79 179 163; /* #4FB3A3 */
+  --gc-warning: 224 165 38; /* #E0A526 */
+  --gc-error: 224 96 79; /* #E0604F */
+  --gc-info: 111 168 201; /* #6FA8C9 */
+  --gc-shadow: 5 10 11; /* #050A0B */
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --gc-canvas: 228 236 234; /* #E4ECEA */
+  --gc-surface-1: 238 243 242; /* #EEF3F2 */
+  --gc-surface-2: 255 255 255; /* #FFFFFF */
+  --gc-surface-3: 232 239 238; /* #E8EFEE */
+  --gc-surface-carbon: 220 230 228; /* #DCE6E4 */
+  --gc-primary: 42 127 114; /* #2A7F72 */
+  --gc-primary-hover: 35 107 96; /* #236B60 */
+  --gc-primary-dark: 28 87 78; /* #1C574E */
+  --gc-on-primary: 255 255 255; /* #FFFFFF */
+  --gc-hairline: 211 223 221; /* #D3DFDD */
+  --gc-hairline-strong: 183 200 197; /* #B7C8C5 */
+  --gc-text-primary: 20 33 31; /* #14211F */
+  --gc-text-secondary: 53 74 72; /* #354A48 */
+  --gc-text-muted: 90 111 109; /* #5A6F6D */
+  --gc-text-disabled: 138 156 154; /* #8A9C9A */
+  --gc-success: 42 127 114; /* #2A7F72 */
+  --gc-warning: 148 102 10; /* #94660A */
+  --gc-error: 181 61 44; /* #B53D2C */
+  --gc-info: 47 111 149; /* #2F6F95 */
+  --gc-shadow: 20 33 31; /* #14211F */
+}
+
+@font-face {
+  font-family: 'Geist';
+  src: url('../../shared/assets/fonts/Geist.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('../../shared/assets/fonts/GeistMono.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  html, body, #root {
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  body {
+    user-select: none;
+    background-color: transparent;
+    color: rgb(var(--gc-text-primary));
+    font-family: 'Geist', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* ─── Scrollbar ───────────────────────────────────────────────── */
+::-webkit-scrollbar        { width: 5px; height: 5px; }
+::-webkit-scrollbar-track  { background: rgb(var(--gc-canvas)); }
+::-webkit-scrollbar-thumb  { background: rgb(var(--gc-hairline-strong)); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgb(var(--gc-text-disabled)); }
+
+/* ─── No-scrollbar utility ────────────────────────────────────── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ─── Tabular numerals utility ────────────────────────────────── */
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* ─── Keyboard focus ─────────────────────────────────────────── */
+:focus-visible { outline: 2px solid rgb(var(--gc-primary)); outline-offset: 2px; }
+
+/* ─── Electron Frameless Window Drag Utilities ────────────────── */
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag-region {
+  -webkit-app-region: no-drag;
+}
+
+
+/* ─── Client lock screen video: no looping motion for reduced-motion users ── */
+@media (prefers-reduced-motion: reduce) {
+  .gc-lock-video { display: none; }
+}

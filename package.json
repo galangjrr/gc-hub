@@ -1,0 +1,133 @@
+{
+  "name": "gc-hub",
+  "version": "1.0.0",
+  "description": "GC-Hub Cyber Cafe Management & Client Billing Lock System",
+  "author": "GC Net",
+  "type": "module",
+  "main": "dist-electron/main/index.cjs",
+  "scripts": {
+    "test": "npm run typecheck && npm run test:personal && npm run test:booking:sql && npm run test:booking:api && npm run test:lan-auth && npm run test:billing:comp && npm run test:member-billing && npm run test:offline && npm run test:password && npm run test:cloud-sync && npm run test:db && npm run test:server:ipc && npm run test:server:login && npm run test:client:kiosk && npm run test:client-config && npm run test:pos && npm run test:billing && npm run test:package-rules && npm run test:billing:rules && npm run test:pos:counter && npm run test:transactions && npm run test:workstations && npm run test:process-scan && npm run test:db:backup && npm run test:remote && npm run test:shift:voucher && npm run test:e2e && npm run test:smoke && npm run test:sim && npm run test:stress",
+    "typecheck": "tsc -p tsconfig.json",
+    "dev:server": "vite --config vite.server.config.ts",
+    "dev:client": "vite --config vite.client.config.ts",
+    "postinstall": "node scripts/patch-dev-exe.mjs",
+    "build:electron": "node build-electron.mjs && node scripts/patch-dev-exe.mjs",
+    "electron:server": "npm run build:electron && cross-env VITE_APP_MODE=server VITE_DEV_SERVER_URL=http://localhost:5174 concurrently -k \"npm run dev:server\" \"wait-on http://localhost:5174 && node scripts/run-dev.mjs server\"",
+    "electron:client": "npm run build:electron && cross-env VITE_APP_MODE=client VITE_DEV_SERVER_URL=http://localhost:5175 concurrently -k \"npm run dev:client\" \"wait-on http://localhost:5175 && node scripts/run-dev.mjs client\"",
+    "build:server": "tsc -p tsconfig.json && vite build --config vite.server.config.ts",
+    "build:client": "tsc -p tsconfig.json && vite build --config vite.client.config.ts",
+    "build:all": "npm run build:electron && npm run build:server && npm run build:client",
+    "dist": "npm run build:all && electron-builder",
+    "dist:dir": "npm run build:all && electron-builder --dir",
+    "dist:portable": "npm run build:all && electron-builder --win portable",
+    "dist:release": "node scripts/package-release.mjs",
+    "test:billing": "node scripts/test-billing-logic.mjs",
+    "test:personal": "tsx scripts/test-personal-billing.ts",
+    "test:billing:comp": "node scripts/run-electron-test.mjs scripts/test-billing-comprehensive.ts",
+    "test:db": "node scripts/run-electron-test.mjs scripts/test-db-runner.ts",
+    "test:db:backup": "node scripts/run-electron-test.mjs scripts/test-db-backup.ts",
+    "test:package-rules": "node scripts/run-electron-test.mjs scripts/test-package-rules.ts",
+    "test:billing:rules": "node scripts/run-electron-test.mjs scripts/test-billing-rules.ts",
+    "test:server:ipc": "node scripts/run-electron-test.mjs scripts/test-server-ui-ipc.ts",
+    "test:settings-secrets": "node scripts/test-settings-secrets.mjs",
+    "test:client-config": "node scripts/run-electron-test.mjs scripts/test-client-config.ts",
+    "test:client:kiosk": "node scripts/run-electron-test.mjs scripts/test-client-kiosk.ts",
+    "test:pos": "node scripts/run-electron-test.mjs scripts/test-pos-order.ts",
+    "test:pos:counter": "node scripts/run-electron-test.mjs scripts/test-counter-sale.ts",
+    "test:remote": "node scripts/run-electron-test.mjs scripts/test-remote-management.ts",
+    "test:shift:voucher": "node scripts/run-electron-test.mjs scripts/test-shift-voucher.ts",
+    "test:server:login": "node scripts/run-electron-test.mjs scripts/test-server-login.ts",
+    "test:e2e": "node scripts/run-electron-test.mjs scripts/test-e2e-workflow.mjs",
+    "test:smoke": "node scripts/run-electron-test.mjs scripts/test-smoke-field.mjs",
+    "test:offline": "node scripts/run-electron-test.mjs scripts/test-offline-reconcile.ts",
+    "test:password": "node scripts/run-electron-test.mjs scripts/test-password-auth.ts",
+    "test:lan-auth": "tsx scripts/test-lan-auth.ts",
+    "test:transactions": "tsx scripts/test-transactions.ts",
+    "test:workstations": "node scripts/run-electron-test.mjs scripts/test-workstations.ts",
+    "test:process-scan": "node scripts/run-electron-test.mjs scripts/test-process-scan.ts",
+    "test:booking:sql": "node scripts/test-booking-sql.mjs",
+    "test:booking:api": "tsx scripts/test-booking-api.ts",
+    "check:edge": "cd supabase/functions/api && npx -y deno check index.ts",
+    "test:member-billing": "node scripts/run-electron-test.mjs scripts/test-member-billing.ts",
+    "test:cloud-sync": "node scripts/run-electron-test.mjs scripts/test-cloud-sync.ts",
+    "test:sim": "node scripts/run-electron-test.mjs scripts/simulate-real-cafe-day.ts",
+    "test:stress": "node scripts/run-electron-test.mjs scripts/test-stress-load.ts",
+    "test:release:e2e": "node scripts/test-release-binaries.mjs",
+    "cert:create": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/create-dev-cert.ps1",
+    "cert:sign": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/sign-executables.ps1"
+  },
+  "build": {
+    "appId": "com.gcnet.gchub",
+    "productName": "GC Hub - Server",
+    "executableName": "GC-Hub-Server",
+    "copyright": "Copyright © 2026 GC Net",
+    "publish": {
+      "provider": "github",
+      "owner": "gcnet",
+      "repo": "gc-hub"
+    },
+    "npmRebuild": false,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "bin/**/*",
+      "icons/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "**/better-sqlite3/build/Release/*"
+    ],
+    "win": {
+      "icon": "icons/icon.ico",
+      "target": "dir",
+      "publisherName": "GC Net",
+      "legalTrademarks": "GC Net"
+    },
+    "mac": {
+      "icon": "icons/icon.icns",
+      "category": "public.app-category.business"
+    },
+    "linux": {
+      "icon": "icons",
+      "category": "Utility"
+    }
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.112.4",
+    "better-sqlite3": "^11.3.0",
+    "clsx": "^2.1.1",
+    "drizzle-orm": "^0.45.2",
+    "electron-updater": "^6.8.9",
+    "lucide-react": "^1.16.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwind-merge": "^3.0.2",
+    "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^22.13.4",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@types/ws": "^8.18.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^10.0.5",
+    "cross-env": "^7.0.3",
+    "drizzle-kit": "^0.31.10",
+    "electron": "^29.4.0",
+    "electron-builder": "^25.1.8",
+    "postcss": "^8.5.2",
+    "rcedit": "^5.0.2",
+    "tailwindcss": "^3.4.17",
+    "tsx": "^4.23.12",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0",
+    "wait-on": "^9.1.0"
+  }
+}

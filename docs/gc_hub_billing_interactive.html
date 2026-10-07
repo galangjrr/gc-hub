@@ -1,0 +1,1464 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark" data-preset="classic">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="generator" content="archify 2.16.0">
+  <title>Peta Alur Billing Warnet GC-Hub & Titik Audit Keamanan</title>
+  <script>
+    (function () {
+      try {
+        var theme = null;
+        try {
+          var param = new URLSearchParams(window.location.search).get('theme');
+          if (param === 'light' || param === 'dark') theme = param;
+          if (new URLSearchParams(window.location.search).get('embed') === '1') {
+            document.documentElement.setAttribute('data-embed', 'true');
+          }
+          if (new URLSearchParams(window.location.search).get('present') === '1') {
+            document.documentElement.setAttribute('data-present', 'true');
+          }
+        } catch (_) {}
+        if (!theme) {
+          try { theme = localStorage.getItem('archify-theme'); } catch (_) {}
+        }
+        if (theme !== 'light' && theme !== 'dark') {
+          theme = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (_) {}
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root,
+    [data-theme="dark"] {
+      --bg: #020617;
+      --grid: #1e293b;
+      --text: #ffffff;
+      --text-muted: #94a3b8;
+      --text-dim: #475569;
+      --text-faint: #7d8da1;
+
+      --panel: rgba(15, 23, 42, 0.65);
+      --panel-border: #1e293b;
+      --lane-fill: rgba(15, 23, 42, 0.28);
+      --lane-stroke: #334155;
+
+      --arrow: #64748b;
+      --arrow-emphasis: #34d399;
+
+      --mask: #0f172a;
+
+      --frontend-fill:    rgba(8, 51, 68, 0.45);
+      --frontend-stroke:  #22d3ee;
+      --backend-fill:     rgba(6, 78, 59, 0.45);
+      --backend-stroke:   #34d399;
+      --database-fill:    rgba(76, 29, 149, 0.45);
+      --database-stroke:  #a78bfa;
+      --cloud-fill:       rgba(120, 53, 15, 0.35);
+      --cloud-stroke:     #fbbf24;
+      --security-fill:    rgba(136, 19, 55, 0.55);
+      --security-stroke:  #fb7185;
+      --messagebus-fill:  rgba(251, 146, 60, 0.35);
+      --messagebus-stroke:#fb923c;
+      --external-fill:    rgba(30, 41, 59, 0.55);
+      --external-stroke:  #94a3b8;
+
+      --toolbar-bg:       rgba(15, 23, 42, 0.88);
+      --toolbar-border:   #334155;
+      --toolbar-text:     #e2e8f0;
+      --toolbar-hover:    rgba(15, 23, 42, 0.98);
+      --toolbar-menu-bg:  #0f172a;
+
+      --sec-alert:        #f43f5e;
+      --sec-alert-bg:     rgba(244, 63, 94, 0.2);
+    }
+
+    [data-theme="light"] {
+      --bg: #f8fafc;
+      --grid: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --text-dim: #94a3b8;
+      --text-faint: #64748b;
+
+      --panel: #ffffff;
+      --panel-border: #e2e8f0;
+      --lane-fill: rgba(248, 250, 252, 0.75);
+      --lane-stroke: #cbd5e1;
+
+      --arrow: #94a3b8;
+      --arrow-emphasis: #059669;
+
+      --mask: #ffffff;
+
+      --frontend-fill:    rgba(34, 211, 238, 0.15);
+      --frontend-stroke:  #0891b2;
+      --backend-fill:     rgba(52, 211, 153, 0.18);
+      --backend-stroke:   #059669;
+      --database-fill:    rgba(167, 139, 250, 0.2);
+      --database-stroke:  #7c3aed;
+      --cloud-fill:       rgba(251, 191, 36, 0.18);
+      --cloud-stroke:     #d97706;
+      --security-fill:    rgba(251, 113, 133, 0.2);
+      --security-stroke:  #e11d48;
+      --messagebus-fill:  rgba(251, 146, 60, 0.15);
+      --messagebus-stroke:#ea580c;
+      --external-fill:    rgba(148, 163, 184, 0.18);
+      --external-stroke:  #64748b;
+
+      --toolbar-bg:       rgba(255, 255, 255, 0.94);
+      --toolbar-border:   #cbd5e1;
+      --toolbar-text:     #334155;
+      --toolbar-hover:    #ffffff;
+      --toolbar-menu-bg:  #ffffff;
+
+      --sec-alert:        #e11d48;
+      --sec-alert-bg:     rgba(225, 29, 72, 0.15);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      background: var(--bg);
+      min-height: 100vh;
+      padding: 1.5rem;
+      color: var(--text);
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .container { max-width: 1360px; margin: 0 auto; }
+
+    /* Top Toolbar */
+    .toolbar {
+      position: fixed;
+      top: 1rem;
+      right: 1.5rem;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--toolbar-bg);
+      border: 1px solid var(--toolbar-border);
+      border-radius: 0.5rem;
+      padding: 0.25rem;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    }
+    .toolbar button {
+      background: transparent;
+      border: 0;
+      color: var(--toolbar-text);
+      padding: 0.35rem 0.65rem;
+      border-radius: 0.35rem;
+      font-family: inherit;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: all 0.15s ease;
+    }
+    .toolbar button:hover { background: var(--toolbar-hover); }
+
+    .btn-security-toggle {
+      background: var(--sec-alert-bg) !important;
+      border: 1px solid var(--sec-alert) !important;
+      color: var(--sec-alert) !important;
+    }
+
+    /* Header */
+    .header { margin-bottom: 1.25rem; }
+    .header-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.35rem; }
+    .header-title-wrap { display: flex; align-items: center; gap: 0.75rem; }
+    .pulse-dot {
+      width: 0.7rem;
+      height: 0.7rem;
+      border-radius: 50%;
+      background: var(--backend-stroke);
+      box-shadow: 0 0 12px var(--backend-stroke);
+      animation: archify-pulse 2s infinite ease-in-out;
+    }
+    @keyframes archify-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(0.85); }
+    }
+    .header h1 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; }
+    .subtitle { color: var(--text-muted); font-size: 0.8rem; line-height: 1.45; }
+
+    /* Guided Story Bar */
+    .guided-views {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 0.65rem;
+      padding: 0.85rem 1.15rem;
+      margin-bottom: 1.25rem;
+      display: grid;
+      grid-template-columns: auto 1fr auto auto;
+      align-items: center;
+      gap: 1rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+    .guided-view-copy { display: flex; flex-direction: column; gap: 0.25rem; }
+    .guided-view-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.65rem;
+      color: var(--frontend-stroke);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .guided-view-copy strong { font-size: 0.95rem; color: var(--text); }
+    .guided-view-copy small { font-size: 0.75rem; color: var(--text-muted); line-height: 1.45; }
+
+    .guided-view-actions { display: flex; align-items: center; gap: 0.5rem; }
+    .guided-view-actions button {
+      background: var(--toolbar-bg);
+      border: 1px solid var(--toolbar-border);
+      color: var(--text);
+      padding: 0.4rem 0.75rem;
+      border-radius: 0.4rem;
+      font-family: inherit;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.15s ease;
+    }
+    .guided-view-actions button:hover { border-color: var(--backend-stroke); color: var(--backend-stroke); }
+    .guided-view-play {
+      background: var(--backend-fill) !important;
+      border-color: var(--backend-stroke) !important;
+      color: var(--backend-stroke) !important;
+    }
+
+    .guided-nav-btn {
+      background: var(--toolbar-bg);
+      border: 1px solid var(--toolbar-border);
+      color: var(--text);
+      width: 2.2rem;
+      height: 2.2rem;
+      border-radius: 0.4rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+    .guided-nav-btn:hover { border-color: var(--frontend-stroke); }
+
+    .guided-view-chapters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.75rem;
+      list-style: none;
+    }
+    .guided-chapter-pill {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--toolbar-border);
+      color: var(--text-muted);
+      padding: 0.3rem 0.65rem;
+      border-radius: 0.35rem;
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .guided-chapter-pill:hover,
+    .guided-chapter-pill.active {
+      border-color: var(--backend-stroke);
+      color: var(--text);
+      background: var(--backend-fill);
+    }
+    .guided-chapter-pill.security-pill {
+      border-color: rgba(244, 63, 94, 0.4);
+    }
+    .guided-chapter-pill.security-pill.active {
+      border-color: var(--sec-alert);
+      color: #fff;
+      background: var(--sec-alert);
+    }
+
+    /* Main Diagram Container */
+    .diagram-container {
+      position: relative;
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    }
+    .diagram-container svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* SVG Colors & Utilities */
+    .c-grid { stroke: var(--grid); }
+    .c-lane { fill: var(--lane-fill); stroke: var(--lane-stroke); }
+    .c-mask { fill: var(--mask); }
+
+    .c-frontend   { fill: var(--frontend-fill); stroke: var(--frontend-stroke); }
+    .c-backend    { fill: var(--backend-fill); stroke: var(--backend-stroke); }
+    .c-database   { fill: var(--database-fill); stroke: var(--database-stroke); }
+    .c-cloud      { fill: var(--cloud-fill); stroke: var(--cloud-stroke); }
+    .c-security   { fill: var(--security-fill); stroke: var(--security-stroke); }
+    .c-messagebus { fill: var(--messagebus-fill); stroke: var(--messagebus-stroke); }
+    .c-external   { fill: var(--external-fill); stroke: var(--external-stroke); }
+    .c-hotspot    { fill: rgba(244, 63, 94, 0.85); stroke: #ffffff; }
+
+    .t-primary  { fill: var(--text); font-family: inherit; }
+    .t-muted    { fill: var(--text-muted); font-family: inherit; }
+    .t-dim      { fill: var(--text-dim); font-family: inherit; }
+    .t-frontend { fill: var(--frontend-stroke); font-family: inherit; }
+    .t-backend  { fill: var(--backend-stroke); font-family: inherit; }
+    .t-database { fill: var(--database-stroke); font-family: inherit; }
+    .t-cloud    { fill: var(--cloud-stroke); font-family: inherit; }
+    .t-security { fill: var(--security-stroke); font-family: inherit; }
+    .t-hotspot  { fill: #ffffff; font-family: inherit; font-weight: 800; }
+
+    .a-default   { stroke: var(--arrow); fill: none; }
+    .a-emphasis  { stroke: var(--arrow-emphasis); fill: none; }
+    .a-security  { stroke: var(--security-stroke); fill: none; stroke-dasharray: 5,5; }
+    .a-dashed    { stroke: var(--database-stroke); fill: none; stroke-dasharray: 4,4; }
+    .a-operator  { stroke: #38bdf8; fill: none; }
+
+    .m-default   { fill: var(--arrow); }
+    .m-emphasis  { fill: var(--arrow-emphasis); }
+    .m-security  { fill: var(--security-stroke); }
+    .m-dashed    { fill: var(--database-stroke); }
+    .m-operator  { fill: #38bdf8; }
+
+    /* Node Hover & Interactive Focus */
+    svg [data-node-id], svg [data-hotspot-id] {
+      cursor: pointer;
+      transition: opacity 0.2s ease, filter 0.2s ease;
+    }
+    svg [data-node-id]:hover {
+      filter: drop-shadow(0 0 8px var(--frontend-stroke));
+    }
+    svg [data-hotspot-id]:hover {
+      filter: drop-shadow(0 0 10px var(--sec-alert));
+    }
+
+    svg[data-focus-active="true"] [data-node-id] { opacity: 0.15; }
+    svg[data-focus-active="true"] [data-edge-key] { opacity: 0.10; }
+    svg[data-focus-active="true"] g[data-edge-label-group] { opacity: 0.10; }
+    svg[data-focus-active="true"] [data-hotspot-id] { opacity: 0.2; }
+    
+    svg[data-focus-active="true"] [data-focus-match="true"] {
+      opacity: 1 !important;
+      filter: drop-shadow(0 0 10px var(--frontend-stroke));
+    }
+    svg[data-focus-active="true"] path[data-focus-match="true"] {
+      opacity: 1 !important;
+      stroke-width: 2.8 !important;
+    }
+    svg[data-focus-active="true"] g[data-edge-label-group][data-focus-match="true"] {
+      opacity: 1 !important;
+    }
+    svg[data-focus-active="true"] g[data-hotspot-id][data-focus-match="true"] {
+      opacity: 1 !important;
+      filter: drop-shadow(0 0 14px var(--sec-alert));
+    }
+
+    /* Hotspot Badge Pulse */
+    .pulse-hotspot {
+      animation: hotspot-pulse 1.8s infinite ease-in-out;
+      transform-origin: center;
+    }
+    @keyframes hotspot-pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.15); opacity: 0.85; }
+    }
+
+    /* Diagram Nav Controls */
+    .diagram-nav {
+      position: absolute;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: var(--toolbar-bg);
+      border: 1px solid var(--toolbar-border);
+      border-radius: 0.5rem;
+      padding: 0.25rem 0.5rem;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+    .diagram-nav button {
+      background: transparent;
+      border: 0;
+      color: var(--toolbar-text);
+      padding: 0.3rem 0.5rem;
+      border-radius: 0.35rem;
+      font-family: inherit;
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .diagram-nav button:hover { background: var(--toolbar-hover); color: var(--frontend-stroke); }
+
+    /* Semantic Passport Modal */
+    .focus-chip {
+      position: absolute;
+      bottom: 4.5rem;
+      right: 1.5rem;
+      z-index: 40;
+      width: min(30rem, calc(100% - 3rem));
+      background: var(--toolbar-menu-bg);
+      border: 1px solid var(--frontend-stroke);
+      border-radius: 0.65rem;
+      padding: 1.25rem;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(16px);
+      display: none;
+    }
+    .focus-chip.open { display: block; animation: chipFadeIn 0.2s ease-out; }
+    @keyframes chipFadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .focus-chip-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--toolbar-border);
+      padding-bottom: 0.5rem;
+      margin-bottom: 0.65rem;
+    }
+    .focus-chip-eyebrow {
+      font-size: 0.65rem;
+      font-weight: 800;
+      color: var(--frontend-stroke);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .focus-chip-title { font-size: 1rem; font-weight: 700; color: var(--text); }
+    .focus-chip-close {
+      background: transparent;
+      border: 0;
+      color: var(--text-muted);
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+    .focus-chip-close:hover { color: var(--text); }
+    .focus-chip-body { font-size: 0.76rem; color: var(--text-muted); line-height: 1.55; }
+    .focus-chip-body code { color: var(--backend-stroke); background: rgba(0, 0, 0, 0.35); padding: 0.1rem 0.35rem; border-radius: 0.25rem; }
+    
+    .focus-chip-sec-box {
+      margin-top: 0.75rem;
+      padding: 0.65rem;
+      background: rgba(244, 63, 94, 0.12);
+      border: 1px solid var(--sec-alert);
+      border-radius: 0.4rem;
+      font-size: 0.72rem;
+      line-height: 1.45;
+    }
+    .focus-chip-sec-box strong { color: var(--sec-alert); display: block; margin-bottom: 0.25rem; }
+
+    .focus-chip-source {
+      margin-top: 0.75rem;
+      padding-top: 0.5rem;
+      border-top: 1px dashed var(--toolbar-border);
+      font-size: 0.7rem;
+      color: var(--frontend-stroke);
+    }
+
+    /* Bottom Cards */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1.25rem;
+      margin-top: 1.5rem;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 0.65rem;
+      padding: 1.25rem;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .card-dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; }
+    .card-dot.emerald { background: var(--backend-stroke); box-shadow: 0 0 8px var(--backend-stroke); }
+    .card-dot.rose { background: var(--sec-alert); box-shadow: 0 0 8px var(--sec-alert); }
+    .card-dot.cyan { background: var(--frontend-stroke); box-shadow: 0 0 8px var(--frontend-stroke); }
+    .card h3 { font-size: 0.88rem; font-weight: 700; color: var(--text); }
+    .card ul { list-style: none; display: grid; gap: 0.45rem; }
+    .card li { font-size: 0.74rem; color: var(--text-muted); line-height: 1.45; }
+    .card code { color: var(--frontend-stroke); font-size: 0.72rem; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Toolbar -->
+  <div class="toolbar" role="toolbar" aria-label="Aksi Diagram">
+    <button id="btn-theme" type="button" title="Ganti Tema Gelap/Terang (T)">
+      <span id="theme-label">Gelap</span>
+    </button>
+    <button id="btn-sec-mode" class="btn-security-toggle" type="button" title="Lihat Titik Rawan & Celah Keamanan">
+      <span>🛡️ Titik Rawan (Audit)</span>
+    </button>
+    <div class="preset-wrap">
+      <button id="btn-preset" type="button" title="Gaya Tampilan (S)">
+        <span id="preset-label">Klasik</span> &#9662;
+      </button>
+      <div class="preset-menu" id="preset-menu">
+        <button class="preset-option" data-preset="classic"><strong>Klasik</strong></button>
+        <button class="preset-option" data-preset="signal-flow"><strong>Alur Sinyal</strong></button>
+        <button class="preset-option" data-preset="blueprint"><strong>Cetak Biru</strong></button>
+        <button class="preset-option" data-preset="editorial"><strong>Koran/Katalog</strong></button>
+      </div>
+    </div>
+    <button id="btn-motion" type="button" title="Hidupkan/Matikan Animasi Alur">
+      <span id="motion-label">Animasi</span>
+    </button>
+    <button id="btn-present" type="button" title="Layar Penuh (F)">
+      <span>Layar Penuh</span>
+    </button>
+  </div>
+
+  <div class="container">
+    
+    <!-- Header -->
+    <div class="header">
+      <div class="header-row">
+        <div class="header-title-wrap">
+          <div class="pulse-dot"></div>
+          <h1>Alur Lengkap Billing GC-Hub: Kasir Buka Sesi, Pemakaian Nyata &amp; Peta Keamanan</h1>
+        </div>
+      </div>
+      <p class="subtitle">Memetakan secara konkret: Pelanggan datang ke kasir bayar tunai (Operator Start Session), login sendiri di bilik, booking HP, hingga titik-titik rawan kecurangan kasir atau pembobolan bilik yang bisa diamankan.</p>
+    </div>
+
+    <!-- Guided Views & Story Chapters Bar -->
+    <div class="guided-views" id="guided-views">
+      <button class="guided-nav-btn" id="guided-prev" title="Langkah Sebelumnya ([)">&larr;</button>
+      
+      <div class="guided-view-copy">
+        <div class="guided-view-meta">
+          <span id="guided-badge-type">Alur Kasir &amp; Pemakaian Nyata</span>
+          <span id="guided-step-counter">1 / 8</span>
+        </div>
+        <strong id="guided-title">1. Pelanggan Datang Beli Paket Tunai (Kasir Bukakan Sesi)</strong>
+        <small id="guided-desc">Pelanggan bilang: "Bang, paket 3 jam di PC-05". Kasir klik kanan PC-05 di layar kasir, pilih paket, terima uang tunai Rp 10.000. Komputer kasir mencatat transaksi di SQLite, lalu mengirim sinyal remote buka kunci layar PC-05 secara instan.</small>
+        
+        <ul class="guided-view-chapters" id="chapter-list">
+          <li class="guided-chapter-pill active" data-step="0">01 Kasir Buka Sesi (Walk-In Tunai)</li>
+          <li class="guided-chapter-pill" data-step="1">02 Pelanggan Login Mandiri (Member/Voucher)</li>
+          <li class="guided-chapter-pill" data-step="2">03 Booking Lewat HP (QRIS Cloud)</li>
+          <li class="guided-chapter-pill" data-step="3">04 Ganti Paket / Nambah Jam (Stacking)</li>
+          <li class="guided-chapter-pill" data-step="4">05 Pesan Makanan / Minuman dari Game</li>
+          <li class="guided-chapter-pill" data-step="5">06 Pindah Bilik (Transfer PC)</li>
+          <li class="guided-chapter-pill" data-step="6">07 Kunci Sementara (AFK PIN)</li>
+          <li class="guided-chapter-pill" data-step="7">08 Waktu Habis: Kunci &amp; Hapus Data Pribadi</li>
+        </ul>
+      </div>
+
+      <button class="guided-nav-btn" id="guided-next" title="Langkah Berikutnya (])">&rarr;</button>
+
+      <div class="guided-view-actions">
+        <button class="guided-view-play" id="guided-play">
+          <span id="guided-play-icon">&#9654;</span> <span id="guided-play-label">Putar Alur</span>
+        </button>
+        <button id="guided-reset">Lihat Semua</button>
+      </div>
+    </div>
+
+    <!-- Main Architecture Diagram (SVG Archify Canvas) -->
+    <div class="diagram-container">
+      <svg id="diagram-svg" viewBox="0 0 1240 960" role="img" data-preset="classic">
+        
+        <!-- Definitions: Grid & Arrowhead Markers -->
+        <defs>
+          <marker id="arrowhead" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+            <polygon points="0 0, 9 3.5, 0 7" class="m-default" />
+          </marker>
+          <marker id="arrowhead-emphasis" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+            <polygon points="0 0, 9 3.5, 0 7" class="m-emphasis" />
+          </marker>
+          <marker id="arrowhead-security" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+            <polygon points="0 0, 9 3.5, 0 7" class="m-security" />
+          </marker>
+          <marker id="arrowhead-dashed" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+            <polygon points="0 0, 9 3.5, 0 7" class="m-dashed" />
+          </marker>
+          <marker id="arrowhead-operator" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+            <polygon points="0 0, 9 3.5, 0 7" class="m-operator" />
+          </marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" class="c-grid" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+
+        <!-- Background Grid -->
+        <rect width="100%" height="100%" fill="url(#grid)" />
+
+        <!-- ================= 3 JALUR UTAMA (SWIMLANES) ================= -->
+        
+        <!-- Lane 01: Layanan HP & Internet Cloud -->
+        <rect x="40" y="52" width="1160" height="175" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="54" y="74" class="t-dim" font-size="10" font-weight="700">01 / JALUR INTERNET &amp; HP PELANGGAN — Booking Online, Struk QRIS, Pantau Omzet Jarak Jauh</text>
+
+        <!-- Lane 02: Komputer Server Kasir Warnet -->
+        <rect x="40" y="255" width="1160" height="295" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="54" y="277" class="t-dim" font-size="10" font-weight="700">02 / MEJA OPERATOR KASIR — Tempat Operator Buka Sesi, Kas Masuk, dan Otoritas Timer Server</text>
+
+        <!-- Lane 03: Komputer Bilik Pelanggan -->
+        <rect x="40" y="580" width="1160" height="280" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="54" y="602" class="t-dim" font-size="10" font-weight="700">03 / KOMPUTER BILIK PELANGGAN — Layar Gembok Kiosk, Tempat Main Game, Kapsul HUD, dan Kunci Anti-Bongkar</text>
+
+
+        <!-- ================= GARIS PANAH HUBUNGAN ================= -->
+
+        <!-- [Panah 0 - UTAMA]: Kasir Buka Sesi Walk-in -> Penghitung Waktu Server -->
+        <path data-edge-key="0" d="M 680 395 L 680 435 L 785 435" class="a-operator" stroke-width="2.5" marker-end="url(#arrowhead-operator)"/>
+
+        <!-- [Panah 0B - UTAMA]: Kasir Buka Sesi Walk-in -> Buka Layar Bilik PC -->
+        <path data-edge-key="0b" d="M 640 395 L 640 560 L 330 560 L 330 655" class="a-operator" stroke-width="2.5" marker-end="url(#arrowhead-operator)"/>
+
+        <!-- [Panah 0C - UTAMA]: Kasir Catat Uang Tunai ke SQLite Buku Kasir -->
+        <path data-edge-key="0c" d="M 615 365 L 405 365" class="a-dashed" stroke-width="1.8" marker-end="url(#arrowhead-dashed)"/>
+
+        <!-- [Panah 1]: Penyambung Bilik -> Komputer Kasir (Daftar PC Saat Nyala) -->
+        <path data-edge-key="1" d="M 125 655 L 125 395" class="a-emphasis" stroke-width="2" marker-end="url(#arrowhead-emphasis)"/>
+        
+        <!-- [Panah 2]: Kasir -> Catatan Lokal: Simpan PC Siap Pakai -->
+        <path data-edge-key="2" d="M 205 365 L 275 365" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+
+        <!-- [Panah 3]: Kasir -> Layar Kunci Bilik: Kirim Konfigurasi & Jam Server -->
+        <path data-edge-key="3" d="M 165 395 L 165 685 L 265 685" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+        <!-- [Panah 4]: Layar Kunci -> Gembok Keyboard: Kunci Tombol Windows & Task Manager -->
+        <path data-edge-key="4" d="M 335 727 L 335 765" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
+
+        <!-- [Panah 5]: Web HP Pelanggan -> Database Internet: Pesan Booking & Upload QRIS -->
+        <path data-edge-key="5" d="M 405 152 L 470 152" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+
+        <!-- [Panah 6]: Database Internet -> Notifikasi Cepat: Sebarkan Data Booking -->
+        <path data-edge-key="6" d="M 590 152 L 645 152" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+
+        <!-- [Panah 7]: Notifikasi Cepat -> Penyambung Internet Kasir: Beritahu Kasir Booking Masuk -->
+        <path data-edge-key="7" d="M 710 186 L 710 235 L 505 235 L 505 331" class="a-emphasis" stroke-width="2" marker-end="url(#arrowhead-emphasis)"/>
+
+        <!-- [Panah 8]: Penyambung Internet -> Layar Kasir: Kasir Konfirmasi Struk QRIS -->
+        <path data-edge-key="8" d="M 550 365 L 615 365" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+        <!-- [Panah 10]: Kasir -> Layar Bilik: Pasang Status "DIBOOKING" -->
+        <path data-edge-key="10" d="M 660 395 L 660 520 L 385 520 L 385 655" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+        <!-- [Panah 11]: Pelanggan Login Mandiri di Bilik (Member / Voucher) -->
+        <path data-edge-key="11" d="M 300 655 L 300 485 L 180 485 L 180 395" class="a-emphasis" stroke-width="2" marker-end="url(#arrowhead-emphasis)"/>
+
+        <!-- [Panah 12]: Komputer Kasir -> Buku Kasir: Cek Password & Saldo Member -->
+        <path data-edge-key="12" d="M 205 345 L 275 345" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+
+        <!-- [Panah 14]: Server -> Kapsul Melayang: Buka Layar Penuh & Aktifkan Kapsul -->
+        <path data-edge-key="14" d="M 145 395 L 145 540 L 780 540 L 780 655" class="a-emphasis" stroke-width="2" marker-end="url(#arrowhead-emphasis)"/>
+
+        <!-- [Panah 15]: Penghitung Waktu Server -> Kapsul Game: Kirim Sisa Detik Tiap 1 Detik -->
+        <path data-edge-key="15" d="M 855 467 L 855 655" class="a-emphasis" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrowhead-emphasis)"/>
+
+        <!-- [Panah 16]: Kapsul Game -> Layar Kasir: Pelanggan Pesan Mi Goreng / Es Teh -->
+        <path data-edge-key="16" d="M 810 655 L 810 500 L 705 500 L 705 395" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+
+        <!-- [Panah 19]: Kapsul Melayang -> Layar Kunci: Kunci AFK Pakai PIN -->
+        <path data-edge-key="19" d="M 770 693 L 410 693" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
+
+        <!-- [Panah 21]: Waktu Habis 0s: Kunci Layar Bilik & Bersihkan Data Login (Auto-Wipe) -->
+        <path data-edge-key="21" d="M 900 467 L 900 785 L 410 785 L 410 723" class="a-security" stroke-width="2" marker-end="url(#arrowhead-security)"/>
+
+        <!-- [Panah 22]: Selesai Sesi -> Laporkan PC Sudah Kosong ke Web HP -->
+        <path data-edge-key="22" d="M 820 399 L 820 310 L 530 310 L 530 331" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+
+        <!-- ================= KOTAK KOMPONEN (NODES) ================= -->
+
+        <!-- 1. Web Booking HP Pelanggan -->
+        <g id="node-web_portal" data-node-id="web_portal" tabindex="0" role="button">
+          <rect x="285" y="118" width="120" height="68" rx="6" class="c-mask"/>
+          <rect x="285" y="118" width="120" height="68" rx="6" class="c-frontend" stroke-width="1.5"/>
+          <text x="345" y="140" class="t-primary" font-size="11" font-weight="700" text-anchor="middle">Booking HP</text>
+          <text x="345" y="156" class="t-muted" font-size="8" text-anchor="middle">Web Pelanggan</text>
+          <text x="345" y="174" class="t-frontend" font-size="7" font-weight="600" text-anchor="middle">PILIH JAM &amp; BILIK</text>
+        </g>
+
+        <!-- 2. Database Internet (Supabase) -->
+        <g id="node-supa_db" data-node-id="supa_db" tabindex="0" role="button">
+          <rect x="470" y="118" width="120" height="68" rx="6" class="c-mask"/>
+          <rect x="470" y="118" width="120" height="68" rx="6" class="c-database" stroke-width="1.5"/>
+          <text x="530" y="140" class="t-primary" font-size="11" font-weight="700" text-anchor="middle">Database Cloud</text>
+          <text x="530" y="156" class="t-muted" font-size="8" text-anchor="middle">Simpanan Internet</text>
+          <text x="530" y="174" class="t-database" font-size="7" font-weight="600" text-anchor="middle">DAFTAR BOOKING</text>
+        </g>
+
+        <!-- 3. Notifikasi Cepat Internet (Realtime CDC) -->
+        <g id="node-supa_cdc" data-node-id="supa_cdc" tabindex="0" role="button">
+          <rect x="645" y="118" width="130" height="68" rx="6" class="c-mask"/>
+          <rect x="645" y="118" width="130" height="68" rx="6" class="c-cloud" stroke-width="1.5"/>
+          <text x="710" y="140" class="t-primary" font-size="11" font-weight="700" text-anchor="middle">Siaran Cepat</text>
+          <text x="710" y="156" class="t-muted" font-size="8" text-anchor="middle">Notifikasi Kilat</text>
+          <text x="710" y="174" class="t-cloud" font-size="7" font-weight="600" text-anchor="middle">KIRIM KE KASIR &lt; 0.1s</text>
+        </g>
+
+        <!-- 4. HP Owner Warnet -->
+        <g id="node-mobile_kasir" data-node-id="mobile_kasir" tabindex="0" role="button">
+          <rect x="845" y="118" width="130" height="68" rx="6" class="c-mask"/>
+          <rect x="845" y="118" width="130" height="68" rx="6" class="c-external" stroke-width="1.5"/>
+          <text x="910" y="140" class="t-primary" font-size="11" font-weight="700" text-anchor="middle">HP Owner / Bos</text>
+          <text x="910" y="156" class="t-muted" font-size="8" text-anchor="middle">Pantau Jarak Jauh</text>
+          <text x="910" y="174" class="t-external" font-size="7" font-weight="600" text-anchor="middle">CEK OMZET &amp; LOG AUDIT</text>
+        </g>
+
+        <!-- 5. Jaringan Server Kasir (Port 7894) -->
+        <g id="node-server_ws" data-node-id="server_ws" tabindex="0" role="button">
+          <rect x="60" y="331" width="145" height="68" rx="6" class="c-mask"/>
+          <rect x="60" y="331" width="145" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
+          <text x="132" y="353" class="t-primary" font-size="11" font-weight="700" text-anchor="middle">Pintu Jaringan Kasir</text>
+          <text x="132" y="369" class="t-muted" font-size="8" text-anchor="middle">Kabel LAN Port 7894</text>
+          <text x="132" y="387" class="t-backend" font-size="7" font-weight="600" text-anchor="middle">KOMUNIKASI KASIR &harr; BILIK</text>
+        </g>
+
+        <!-- 6. Buku Catatan Kasir (Database SQLite WAL) -->
+        <g id="node-sqlite_db" data-node-id="sqlite_db" tabindex="0" role="button">
+          <rect x="275" y="331" width="130" height="68" rx="6" class="c-mask"/>
+          <rect x="275" y="331" width="130" height="68" rx="6" class="c-database" stroke-width="1.5"/>
+          <text x="340" y="353" class="t-primary" font-size="11" font-weight="700" text-anchor="middle">Buku Kasir Lokal</text>
+          <text x="340" y="369" class="t-muted" font-size="8" text-anchor="middle">Catatan Uang &amp; Member</text>
+          <text x="340" y="387" class="t-database" font-size="7" font-weight="600" text-anchor="middle">TETAP JALAN TANPA INTERNET</text>
+        </g>
+
+        <!-- 7. Penyambung Kasir ke Internet -->
+        <g id="node-cloud_sync" data-node-id="cloud_sync" tabindex="0" role="button">
+          <rect x="445" y="331" width="130" height="68" rx="6" class="c-mask"/>
+          <rect x="445" y="331" width="130" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
+          <text x="510" y="353" class="t-primary" font-size="11" font-weight="700" text-anchor="middle">Penyambung Cloud</text>
+          <text x="510" y="369" class="t-muted" font-size="8" text-anchor="middle">Sinkron Tiap 3 Detik</text>
+          <text x="510" y="387" class="t-backend" font-size="7" font-weight="600" text-anchor="middle">UPDATE PC KOSONG/ISI</text>
+        </g>
+
+        <!-- 8. Layar Kasir / Operator Meja Kasir -->
+        <g id="node-kasir_ui" data-node-id="kasir_ui" tabindex="0" role="button">
+          <rect x="615" y="331" width="135" height="68" rx="6" class="c-mask"/>
+          <rect x="615" y="331" width="135" height="68" rx="6" class="c-frontend" stroke-width="2"/>
+          <text x="682" y="353" class="t-primary" font-size="11" font-weight="700" text-anchor="middle">Layar Kasir (Operator)</text>
+          <text x="682" y="369" class="t-muted" font-size="8" text-anchor="middle">Klik Buka Sesi &amp; Tarik Uang</text>
+          <text x="682" y="387" class="t-frontend" font-size="7" font-weight="600" text-anchor="middle">KONTROL UTAMA WARNET</text>
+        </g>
+
+        <!-- 9. Jam Otoriter Server (BillingEngine) -->
+        <g id="node-tick_engine" data-node-id="tick_engine" tabindex="0" role="button">
+          <rect x="785" y="399" width="145" height="68" rx="6" class="c-mask"/>
+          <rect x="785" y="399" width="145" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
+          <text x="857" y="421" class="t-primary" font-size="11" font-weight="700" text-anchor="middle">Penghitung Waktu</text>
+          <text x="857" y="437" class="t-muted" font-size="8" text-anchor="middle">Master Clock 1000ms</text>
+          <text x="857" y="455" class="t-backend" font-size="7" font-weight="600" text-anchor="middle">ANTI-SPEEDHACK / POTONG SALDO</text>
+        </g>
+
+        <!-- 10. Penyambung Bilik ke LAN -->
+        <g id="node-client_ws" data-node-id="client_ws" tabindex="0" role="button">
+          <rect x="60" y="655" width="130" height="68" rx="6" class="c-mask"/>
+          <rect x="60" y="655" width="130" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
+          <text x="125" y="677" class="t-primary" font-size="11" font-weight="700" text-anchor="middle">Penyambung PC Bilik</text>
+          <text x="125" y="693" class="t-muted" font-size="8" text-anchor="middle">Lapor Kondisi Komputer</text>
+          <text x="125" y="711" class="t-backend" font-size="7" font-weight="600" text-anchor="middle">AUTO-RECONNECT 3s</text>
+        </g>
+
+        <!-- 11. Layar Kunci Bilik (Kiosk) -->
+        <g id="node-kiosk_locker" data-node-id="kiosk_locker" tabindex="0" role="button">
+          <rect x="265" y="655" width="145" height="68" rx="6" class="c-mask"/>
+          <rect x="265" y="655" width="145" height="68" rx="6" class="c-security" stroke-width="1.5"/>
+          <text x="337" y="677" class="t-primary" font-size="11" font-weight="700" text-anchor="middle">Layar Kunci Bilik</text>
+          <text x="337" y="693" class="t-muted" font-size="8" text-anchor="middle">Gembok Layar Penuh</text>
+          <text x="337" y="711" class="t-security" font-size="7" font-weight="600" text-anchor="middle">TOPMOST FULLSCREEN</text>
+        </g>
+
+        <!-- 12. Gembok Tombol Keyboard (Anti-Bobol) -->
+        <g id="node-win32_hook" data-node-id="win32_hook" tabindex="0" role="button">
+          <rect x="265" y="765" width="145" height="50" rx="6" class="c-mask"/>
+          <rect x="265" y="765" width="145" height="50" rx="6" class="c-security" stroke-width="1.5"/>
+          <text x="337" y="785" class="t-primary" font-size="9" font-weight="700" text-anchor="middle">Gembok Keyboard</text>
+          <text x="337" y="801" class="t-security" font-size="7" font-weight="600" text-anchor="middle">BLOKIR WINKEY &amp; TASKMGR</text>
+        </g>
+
+        <!-- 13. Kapsul Melayang (Floating HUD) -->
+        <g id="node-capsule_widget" data-node-id="capsule_widget" tabindex="0" role="button">
+          <rect x="755" y="655" width="150" height="68" rx="6" class="c-mask"/>
+          <rect x="755" y="655" width="150" height="68" rx="6" class="c-frontend" stroke-width="1.5"/>
+          <text x="830" y="677" class="t-primary" font-size="11" font-weight="700" text-anchor="middle">Kapsul Waktu Game</text>
+          <text x="830" y="693" class="t-muted" font-size="8" text-anchor="middle">Widget di Pojok Layar</text>
+          <text x="830" y="711" class="t-frontend" font-size="7" font-weight="600" text-anchor="middle">SISA WAKTU, PESAN &amp; KUNCI PIN</text>
+        </g>
+
+
+        <!-- ================= TITIK RAWAN AUDIT KEAMANAN (HOTSPOTS) ================= -->
+
+        <!-- Hotspot 1: Kasir Curang (Uang Masuk Tidak Dicatat / Buka Ilegal) -->
+        <g id="hotspot-sec_cashier" data-hotspot-id="sec_cashier" tabindex="0" role="button">
+          <circle cx="682" cy="331" r="13" class="c-hotspot pulse-hotspot"/>
+          <text x="682" y="335" class="t-hotspot" font-size="9" text-anchor="middle">!</text>
+        </g>
+
+        <!-- Hotspot 2: Pembobolan Bilik (Task Manager / Safe Mode / Alt+Tab) -->
+        <g id="hotspot-sec_locker" data-hotspot-id="sec_locker" tabindex="0" role="button">
+          <circle cx="337" cy="655" r="13" class="c-hotspot pulse-hotspot"/>
+          <text x="337" y="659" class="t-hotspot" font-size="9" text-anchor="middle">!</text>
+        </g>
+
+        <!-- Hotspot 3: Jam Curang (Speedhack Windows / Cheat Engine di PC Bilik) -->
+        <g id="hotspot-sec_timer" data-hotspot-id="sec_timer" tabindex="0" role="button">
+          <circle cx="857" cy="399" r="13" class="c-hotspot pulse-hotspot"/>
+          <text x="857" y="403" class="t-hotspot" font-size="9" text-anchor="middle">!</text>
+        </g>
+
+        <!-- Hotspot 4: Bukti QRIS Palsu di Web Booking -->
+        <g id="hotspot-sec_qris" data-hotspot-id="sec_qris" tabindex="0" role="button">
+          <circle cx="345" cy="118" r="13" class="c-hotspot pulse-hotspot"/>
+          <text x="345" y="122" class="t-hotspot" font-size="9" text-anchor="middle">!</text>
+        </g>
+
+        <!-- Hotspot 5: Akun Game & Google Tertinggal (Kebocoran Akun) -->
+        <g id="hotspot-sec_leak" data-hotspot-id="sec_leak" tabindex="0" role="button">
+          <circle cx="830" cy="655" r="13" class="c-hotspot pulse-hotspot"/>
+          <text x="830" y="659" class="t-hotspot" font-size="9" text-anchor="middle">!</text>
+        </g>
+
+        <!-- Hotspot 6: Kabel LAN Dicabut / PC Mendadak Mati Lampu -->
+        <g id="hotspot-sec_lan" data-hotspot-id="sec_lan" tabindex="0" role="button">
+          <circle cx="125" cy="655" r="13" class="c-hotspot pulse-hotspot"/>
+          <text x="125" y="659" class="t-hotspot" font-size="9" text-anchor="middle">!</text>
+        </g>
+
+
+        <!-- ================= LABEL KETERANGAN PANAH ================= -->
+        <g class="t-backend" font-size="8" font-weight="600">
+          <!-- Panah 0: Operator Start Session -->
+          <g data-edge-label-group="0">
+            <rect x="670" y="425" width="110" height="15" rx="3" class="c-mask"/>
+            <text x="725" y="436" class="t-frontend" text-anchor="middle">Kasir Mulai Sesi</text>
+          </g>
+
+          <!-- Panah 0B: Kasir Remote Unlock -->
+          <g data-edge-label-group="0b">
+            <rect x="420" y="552" width="160" height="15" rx="3" class="c-mask"/>
+            <text x="500" y="563" class="t-frontend" text-anchor="middle">Kasir Buka Gembok PC Bilik</text>
+          </g>
+
+          <!-- Panah 0C: Catat Tunai -->
+          <g data-edge-label-group="0c">
+            <rect x="435" y="357" width="150" height="15" rx="3" class="c-mask"/>
+            <text x="510" y="368" class="t-database" text-anchor="middle">Catat Uang Tunai Masuk</text>
+          </g>
+
+          <!-- Panah 1 -->
+          <g data-edge-label-group="1">
+            <rect x="75" y="525" width="100" height="15" rx="3" class="c-mask"/>
+            <text x="125" y="536" class="t-backend" text-anchor="middle">PC Nyala: "Siap!"</text>
+          </g>
+
+          <!-- Panah 11 -->
+          <g data-edge-label-group="11">
+            <rect x="200" y="477" width="120" height="15" rx="3" class="c-mask"/>
+            <text x="260" y="488" class="t-backend" text-anchor="middle">Member / Voucher Bilik</text>
+          </g>
+
+          <!-- Panah 15 -->
+          <g data-edge-label-group="15">
+            <rect x="780" y="570" width="150" height="15" rx="3" class="c-mask"/>
+            <text x="855" y="581" class="t-backend" text-anchor="middle">Kirim Sisa Waktu Tiap Detik</text>
+          </g>
+
+          <!-- Panah 16 -->
+          <g data-edge-label-group="16">
+            <rect x="710" y="492" width="110" height="15" rx="3" class="c-mask"/>
+            <text x="765" y="503" class="t-database" text-anchor="middle">Pesan Mi / Es Teh</text>
+          </g>
+
+          <!-- Panah 21 -->
+          <g data-edge-label-group="21">
+            <rect x="520" y="777" width="180" height="15" rx="3" class="c-mask"/>
+            <text x="610" y="788" class="t-security" text-anchor="middle">0 Detik: Kunci Layar &amp; Hapus Data</text>
+          </g>
+        </g>
+
+
+        <!-- ================= LEGENDA ================= -->
+        <g transform="translate(40, 896)">
+          <text x="0" y="12" class="t-primary" font-size="11" font-weight="700">Keterangan</text>
+          
+          <rect x="90" y="2" width="14" height="10" rx="2" class="c-frontend" stroke-width="1"/>
+          <text x="110" y="10" class="t-muted" font-size="8">Layar Visual (HP, Bilik, Kasir)</text>
+
+          <rect x="290" y="2" width="14" height="10" rx="2" class="c-backend" stroke-width="1"/>
+          <text x="310" y="10" class="t-muted" font-size="8">Server &amp; Jaringan Kabel LAN</text>
+
+          <rect x="480" y="2" width="14" height="10" rx="2" class="c-database" stroke-width="1"/>
+          <text x="500" y="10" class="t-muted" font-size="8">Buku Kasir &amp; Database Lokal</text>
+
+          <rect x="680" y="2" width="14" height="10" rx="2" class="c-security" stroke-width="1"/>
+          <text x="700" y="10" class="t-muted" font-size="8">Kunci Kiosk Layar Penuh</text>
+
+          <circle cx="855" cy="7" r="6" class="c-hotspot"/>
+          <text x="868" y="10" style="fill: var(--sec-alert); font-weight: bold;" font-size="8">Titik Rawan / Celah Keamanan (Klik untuk Baca)</text>
+        </g>
+
+      </svg>
+
+      <!-- Tombol Navigasi Bawah Kanan -->
+      <div class="diagram-nav">
+        <button id="nav-find" title="Cari Komponen (/)">CARI</button>
+        <button id="nav-zoom-out" title="Perkecil (-)">-</button>
+        <button id="nav-zoom-reset" title="Ukuran Normal (0)">100%</button>
+        <button id="nav-zoom-in" title="Perbesar (+)">+</button>
+      </div>
+
+      <!-- Kartu Detail Komponen & Audit Keamanan -->
+      <div class="focus-chip" id="focus-chip">
+        <div class="focus-chip-header">
+          <div>
+            <div class="focus-chip-eyebrow" id="chip-eyebrow">DETAIL KOMPONEN</div>
+            <div class="focus-chip-title" id="chip-title">Nama Komponen</div>
+          </div>
+          <button class="focus-chip-close" id="chip-close">&times;</button>
+        </div>
+        <div class="focus-chip-body" id="chip-body">
+          <p>Klik kotak komponen atau tanda seru merah (!) untuk membaca analisisnya.</p>
+        </div>
+        <div id="chip-security-wrap"></div>
+        <div class="focus-chip-source" id="chip-source">
+          Lokasi Kode: <code>src/...</code>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Tiga Kartu Pemetaan Audit Keamanan & Rekomendasi di Bawah -->
+    <div class="cards">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot rose"></div>
+          <h3>Titik Rawan 1: Kecurangan Operator Kasir</h3>
+        </div>
+        <ul>
+          <li>&bull; <strong>Celah:</strong> Kasir membukakan sesi main tanpa mencatat uang sewa, atau me-refund sisa jam lalu mengantongi uangnya sendiri.</li>
+          <li>&bull; <strong>Pengamanan GC-Hub:</strong> Setiap buka sesi dicatat di <code>transaction_logs</code> dan <code>session_logs</code>. Tutup shift kasir wajib mencocokkan fisik uang laci dengan laporan sistem.</li>
+          <li>&bull; <strong>Ide Peningkatan:</strong> Pasang aturan wajib print struk fisik saat uang masuk atau integrasi CCTV counter kasir.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot rose"></div>
+          <h3>Titik Rawan 2: Pembobolan Bilik Komputer</h3>
+        </div>
+        <ul>
+          <li>&bull; <strong>Celah:</strong> Pelanggan mencoba membongkar gembok layar bilik menggunakan Task Manager, CMD, tombol Windows, atau colok Flashdisk script.</li>
+          <li>&bull; <strong>Pengamanan GC-Hub:</strong> Native hook <code>WH_KEYBOARD_LL</code> mematikan tombol Windows, Alt+Tab, dan otomatis membunuh proses <code>taskmgr.exe</code>.</li>
+          <li>&bull; <strong>Ide Peningkatan:</strong> Aktifkan Windows Registry Policy untuk mengunci USB mass-storage saat PC dalam status terkunci (AVAILABLE).</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot emerald"></div>
+          <h3>Titik Rawan 3: Kebocoran Data Pelanggan</h3>
+        </div>
+        <ul>
+          <li>&bull; <strong>Celah:</strong> Akun Steam, Discord, Google, dan file download pelanggan tertinggal di PC setelah waktu habis dan dipakai orang lain.</li>
+          <li>&bull; <strong>Pengamanan GC-Hub:</strong> Saat sisa waktu 0 detik (Auto-Cutoff), server mengirim perintah pembersihan <code>client:cleanupSession</code> sebelum layar digembok.</li>
+          <li>&bull; <strong>Ide Peningkatan:</strong> Integrasikan auto-restart PC bilik atau software restore (seperti DeepFreeze/Shadow Defender) setiap sesi berganti.</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SCRIPT MESIN DIAGRAM & AUDIT -->
+  <script>
+    var CHAPTERS = [
+      {
+        title: "1. Pelanggan Datang Beli Paket Tunai (Kasir Bukakan Sesi)",
+        desc: "Pelanggan datang langsung ke meja kasir: 'Bang, paket 3 jam PC-05'. Kasir klik kanan PC-05, pilih paket 3 jam (Rp 10.000). Server menyimpan uang di catatan kasir, lalu secara remote mengirim perintah buka kunci ke layar PC-05. Komputer langsung menyala siap main tanpa pelanggan perlu repot login!",
+        nodes: ["kasir_ui", "sqlite_db", "tick_engine", "server_ws", "kiosk_locker", "capsule_widget", "win32_hook"],
+        edges: ["0", "0b", "0c", "14", "15"]
+      },
+      {
+        title: "2. Pelanggan Login Mandiri di Bilik (Member / Voucher)",
+        desc: "Pelanggan langsung duduk di bilik yang kosong. Layar bilik menampilkan form login. Pelanggan mengetik username member atau voucher kupon. Komputer kasir mengecek saldo member di database, lalu jika saldo cukup, layar bilik langsung terbuka otomatis.",
+        nodes: ["kiosk_locker", "server_ws", "sqlite_db", "tick_engine", "capsule_widget", "win32_hook"],
+        edges: ["11", "12", "14", "15"]
+      },
+      {
+        title: "3. Pelanggan Booking Lewat HP (QRIS Cloud)",
+        desc: "Pelanggan dari rumah atau jalan booking PC-02 lewat HP. Komputer kasir menerima notifikasi kilat di bawah 0.1 detik. Kasir mengonfirmasi pembayaran QRIS, dan PC-02 di bilik otomatis bertuliskan 'DIBOOKING' sehingga tidak bisa ditempati pengunjung lain.",
+        nodes: ["web_portal", "supa_db", "supa_cdc", "cloud_sync", "sqlite_db", "kasir_ui", "kiosk_locker"],
+        edges: ["5", "6", "7", "8", "10"]
+      },
+      {
+        title: "4. Ganti Paket / Nambah Jam Main (Stacking Queue)",
+        desc: "Pelanggan sedang main game tapi waktu mau habis. Pelanggan ke kasir minta nambah paket malam. Kasir klik 'Tambah Paket', waktu baru otomatis ditumpuk (antrian paket). Begitu paket pertama habis, paket kedua langsung otomatis aktif tanpa game terputus!",
+        nodes: ["kasir_ui", "tick_engine", "sqlite_db", "capsule_widget"],
+        edges: ["0", "0c", "15"]
+      },
+      {
+        title: "5. Pesan Makanan / Minuman dari Tengah Game",
+        desc: "Pelanggan lapar saat sedang tanding game. Cukup klik menu makanan di kapsul melayang di layar, pilih Mi Goreng & Es Teh. Komputer kasir bunyi bel 'Tring! Ada Pesanan'. Kasir klik setuju, saldo member dipotong otomatis, dan staf kasir mengantar makanan ke bilik.",
+        nodes: ["capsule_widget", "server_ws", "kasir_ui", "sqlite_db"],
+        edges: ["16", "0c"]
+      },
+      {
+        title: "6. Pindah Bilik Komputer (Transfer Session)",
+        desc: "Mouse di PC-01 rusak, pelanggan minta pindah ke PC-08. Kasir klik kanan PC-01, pilih 'Pindah ke PC-08'. Server otomatis mengunci dan membersihkan PC-01, lalu memindahkan seluruh sisa waktu dan timer ke PC-08 secara mulus.",
+        nodes: ["kasir_ui", "tick_engine", "sqlite_db", "kiosk_locker", "capsule_widget"],
+        edges: ["0", "0b", "21"]
+      },
+      {
+        title: "7. Kunci Sementara (AFK / Mau ke Toilet)",
+        desc: "Pelanggan mau ke toilet atau beli rokok. Tekan tombol 'Kunci AFK' di kapsul game lalu buat PIN 4 angka. Layar bilik langsung tertutup rapat dan keyboard terkunci, sehingga akun game tidak bisa diisengi atau dilihat orang lain.",
+        nodes: ["capsule_widget", "kiosk_locker", "win32_hook"],
+        edges: ["19", "4"]
+      },
+      {
+        title: "8. Waktu Habis: Kunci Komputer & Bersihkan Data Pribadi",
+        desc: "Waktu sewa pas mencapai 0 detik. Jam server kasir mematikan sesi, layar bilik langsung terkunci rapat, sistem otomatis menghapus riwayat login/temp file browser, dan status bilik di web HP kembali berubah menjadi 'KOSONG (SIAP PAKAI)'.",
+        nodes: ["tick_engine", "sqlite_db", "kiosk_locker", "cloud_sync", "supa_db", "win32_hook"],
+        edges: ["21", "22"]
+      }
+    ];
+
+    var HOTSPOT_DETAILS = {
+      sec_cashier: {
+        title: "Titik Rawan 1: Kecurangan Operator Kasir (Uang Laci)",
+        role: "Audit Meja Kasir",
+        desc: "Kasir bisa membuka sesi secara manual tapi uang tunainya tidak dimasukkan ke laci atau membatalkan sesi diam-diam (void) untuk mengantongi uang.",
+        risk: "Pendapatan pemilik warnet bocor tanpa terdeteksi jika kasir tidak diaudit.",
+        mitigation: "GC-Hub mencatat setiap klik di `transaction_logs` dan `session_logs`. Pengamanan tambahan: Wajibkan cetak struk kasir dan kunci pergantian shift (Shift Handover Reconciliation)."
+      },
+      sec_locker: {
+        title: "Titik Rawan 2: Pembobolan Layar Kunci Bilik (Client Bypass)",
+        role: "Audit Keamanan Bilik Kiosk",
+        desc: "Pengunjung mencoba membongkar gembok layar menggunakan kombinasi tombol Windows, Ctrl+Shift+Esc (Task Manager), Alt+F4, atau colok flashdisk berisi virus/script.",
+        risk: "Pengunjung bisa main game gratis tanpa bayar ke kasir.",
+        mitigation: "GC-Hub menggunakan hook tingkat rendah `WH_KEYBOARD_LL` (SystemHook.dll) dan otomatis membunuh proses taskmgr.exe jika terdeteksi aktif saat layar terkunci."
+      },
+      sec_timer: {
+        title: "Titik Rawan 3: Manipulasi Jam PC (Speedhack Windows)",
+        role: "Audit Timer & Penghitung Billing",
+        desc: "Pengguna mengubah jam Windows di bilik komputer atau menggunakan software semacam Cheat Engine untuk memperlambat jam billing agar waktu main tidak habis-habis.",
+        risk: "Waktu main jadi melar dan kasir dirugikan durasi.",
+        mitigation: "Timer GC-Hub bersumber mutlak dari server kasir (Date.now() Server). Komputer bilik tidak menghitung waktu sendiri, melainkan hanya menampilkan angka kiriman server setiap detik."
+      },
+      sec_qris: {
+        title: "Titik Rawan 4: Upload Bukti Transfer QRIS Palsu",
+        role: "Audit Booking Online HP",
+        desc: "Pelanggan booking lewat HP tapi mengunggah tangkapan layar (screenshot) transfer bank palsu atau struk editan Photoshop.",
+        risk: "Bilik komputer terkunci untuk orang lain padahal uang belum masuk ke rekening warnet.",
+        mitigation: "Sistem GC-Hub mewajibkan tombol persetujuan manual (1-Click Kasir) sebelum bilik dibuka, dan log mutasi rekening otomatis disinkronkan ke Supabase."
+      },
+      sec_leak: {
+        title: "Titik Rawan 5: Akun Game & Google Tertinggal (Kebocoran Data)",
+        role: "Audit Privasi Pengunjung",
+        desc: "Pelanggan lupa logout dari akun Steam, Riot Games, Discord, atau Google saat waktu billing tiba-tiba habis.",
+        risk: "Akun pelanggan berikutnya bisa membajak item game atau mencuri data pribadi pengunjung sebelumnya.",
+        mitigation: "GC-Hub menyertakan perintah otomatis `cleanupSession` saat waktu habis untuk membersihkan cache temporary dan menutup paksa browser."
+      },
+      sec_lan: {
+        title: "Titik Rawan 6: Kabel LAN Dicabut / Listrik Padam",
+        role: "Audit Keandalan Jaringan",
+        desc: "Kabel LAN bilik tidak sengaja tersenggol kaki atau komputer bilik tiba-tiba restart karena mati lampu lokal.",
+        risk: "Sesi main terputus dan saldo pelanggan hilang atau kasir kebingungan.",
+        mitigation: "GC-Hub menyimpan sesi aktif setiap 5 detik ke SQLite WAL (Crash Recovery). Begitu komputer bilik menyala kembali, sistem otomatis memulihkan sisa waktu tanpa memotong saldo pelanggan."
+      }
+    };
+
+    var NODE_DETAILS = {
+      web_portal: {
+        title: "Web Booking HP Pelanggan (/data-booking)",
+        role: "Tampilan Layar HP Pelanggan",
+        desc: "Halaman web yang dibuka pelanggan dari HP mereka. Bisa melihat denah bilik PC mana saja yang kosong, memilih paket jam main, dan upload bukti bayar QRIS dari rumah.",
+        source: "https://github.com/galangjrr/gc-net-hub / src/app/data-booking"
+      },
+      supa_db: {
+        title: "Database Internet Cloud (Supabase)",
+        role: "Gudang Data di Internet",
+        desc: "Penyimpanan online di internet yang menampung antrian booking dari HP pelanggan, status PC kosong/isi, dan catatan rekap pendapatan harian warnet.",
+        source: "docs/GC_NET_HUB_CONTRACT.md -> Tabel: bookings, pcs, pakets, logs"
+      },
+      supa_cdc: {
+        title: "Siaran Cepat Internet (Realtime CDC)",
+        role: "Kurir Sinyal Kilat",
+        desc: "Sistem pengantar sinyal secepat kilat (di bawah 0.1 detik). Begitu pelanggan klik bayar di HP, sinyal ini langsung membangunkan komputer kasir di warnet.",
+        source: "src/server/services/supabaseSyncService.ts:L311 -> channel('gc-hub-server-realtime')"
+      },
+      mobile_kasir: {
+        title: "HP Owner / Bos Warnet (/kasir, /rekap)",
+        role: "Aplikasi Khusus Pemilik Warnet",
+        desc: "Aplikasi di HP pemilik warnet untuk memantau pendapatan kasir hari ini, melihat berapa PC yang sedang ramai, dan mengawasi warnet dari luar kota.",
+        source: "https://gcnethub.vercel.app/kasir"
+      },
+      server_ws: {
+        title: "Pintu Jaringan Kasir (Port 7894)",
+        role: "Penerima Sinyal Kabel LAN",
+        desc: "Pintu gerbang komunikasi server kasir yang menyambung ke semua kabel LAN bilik PC. Memastikan setiap bilik selalu terhubung stabil tanpa putus.",
+        source: "src/server/network/serverNetwork.ts:L27 -> ServerNetworkBridge.start(7894)"
+      },
+      sqlite_db: {
+        title: "Buku Catatan Kasir Lokal (SQLite WAL)",
+        role: "Penyimpanan Utama di Komputer Kasir",
+        desc: "Penyimpanan data di komputer kasir warnet. Berisi daftar akun member, saldo uang, sisa paket, dan daftar harga. Sangat tangguh dan tetap jalan normal walau internet mati total.",
+        source: "src/server/db/dbService.ts & src/server/db/schema.ts (22 Tabel)"
+      },
+      cloud_sync: {
+        title: "Penyambung Kasir ke Internet (Cloud Sync)",
+        role: "Jembatan Kasir & Internet",
+        desc: "Petugas otomatis di komputer kasir yang setiap 3 detik memperbarui status komputer warnet ke internet, agar orang yang buka web di HP selalu melihat status bilik yang akurat.",
+        source: "src/server/services/supabaseSyncService.ts:L124 -> syncWorkstations()"
+      },
+      kasir_ui: {
+        title: "Layar Kasir / Meja Operator Warnet",
+        role: "Tampilan Layar Komputer Kasir",
+        desc: "Layar yang dilihat operator kasir: denah warna-warni kotak bilik PC, tombol buka sesi walk-in tunai, tambah jam/paket, bel pesanan mi goreng masuk, dan laporan tutup shift kasir.",
+        source: "src/renderer/views/DashboardView.tsx & src/main/index.ts"
+      },
+      tick_engine: {
+        title: "Penghitung Waktu Server (Billing Engine)",
+        role: "Otak Pengukur Jam & Tarif Sewa",
+        desc: "Detak jam resmi di komputer server kasir tiap 1 detik. Menghitung mundur sisa menit main, memotong saldo member per detik, dan otomatis mengunci PC saat waktu pas 0 detik.",
+        source: "src/server/engine/billingEngine.ts:L55 -> BillingEngine.start()"
+      },
+      client_ws: {
+        title: "Penyambung Jaringan PC Bilik",
+        role: "Pengirim Sinyal dari Bilik",
+        desc: "Program di bilik PC yang bertugas lapor ke kasir: mengirim kabar komputer sehat, sisa kuota, dan siap menerima perintah kunci/buka dari kasir.",
+        source: "src/client/network/clientNetwork.ts:L8 -> connect('ws://localhost:7894')"
+      },
+      kiosk_locker: {
+        title: "Layar Kunci Bilik (Kiosk Screen Locker)",
+        role: "Layar Gembok Layar Penuh",
+        desc: "Tampilan penutup seluruh layar komputer bilik saat kosong atau waktu habis. Menampilkan kotak login username member, voucher kode, dan pengumuman warnet.",
+        source: "src/client/views/ClientView.tsx & src/client/views/ClientKioskView.tsx"
+      },
+      win32_hook: {
+        title: "Gembok Tombol Keyboard (Anti-Bobol)",
+        role: "Satpam Tombol Keyboard & Sistem",
+        desc: "Pengaman tingkat mesin Windows yang mematikan tombol Windows, Alt+Tab, Alt+F4, dan Task Manager agar komputer bilik tidak bisa dibobol gratis tanpa login.",
+        source: "src/main/security/securityManager.ts:L125 -> setLockdownMode(true)"
+      },
+      capsule_widget: {
+        title: "Kapsul Waktu Game (Floating Capsule)",
+        role: "Menu Melayang Saat Bermain Game",
+        desc: "Kotak menu kecil transparan di pojok kanan atas layar saat main game: menampilkan sisa menit main, tombol pesan makanan/minuman, chat ke kasir, dan tombol kunci PIN saat ke toilet.",
+        source: "src/client/components/FloatingCapsule.tsx"
+      }
+    };
+
+    var currentStep = 0;
+    var isPlaying = false;
+    var playTimer = null;
+
+    var svg = document.getElementById("diagram-svg");
+    var stepCounter = document.getElementById("guided-step-counter");
+    var stepTitle = document.getElementById("guided-title");
+    var stepDesc = document.getElementById("guided-desc");
+    var chapterPills = document.querySelectorAll(".guided-chapter-pill");
+    var btnPrev = document.getElementById("guided-prev");
+    var btnNext = document.getElementById("guided-next");
+    var btnPlay = document.getElementById("guided-play");
+    var btnReset = document.getElementById("guided-reset");
+    var playIcon = document.getElementById("guided-play-icon");
+    var playLabel = document.getElementById("guided-play-label");
+
+    var focusChip = document.getElementById("focus-chip");
+    var chipTitle = document.getElementById("chip-title");
+    var chipEyebrow = document.getElementById("chip-eyebrow");
+    var chipBody = document.getElementById("chip-body");
+    var chipSource = document.getElementById("chip-source");
+    var chipSecWrap = document.getElementById("chip-security-wrap");
+    var chipClose = document.getElementById("chip-close");
+
+    function applyStep(index) {
+      currentStep = index;
+      var ch = CHAPTERS[index];
+      stepCounter.textContent = (index + 1) + " / " + CHAPTERS.length;
+      stepTitle.textContent = ch.title;
+      stepDesc.textContent = ch.desc;
+
+      chapterPills.forEach(function(pill, i) {
+        if (i === index) pill.classList.add("active");
+        else pill.classList.remove("active");
+      });
+
+      svg.setAttribute("data-focus-active", "true");
+
+      svg.querySelectorAll("[data-focus-match]").forEach(function(el) {
+        el.removeAttribute("data-focus-match");
+      });
+
+      ch.nodes.forEach(function(nodeId) {
+        var node = svg.querySelector('#node-' + nodeId);
+        if (node) node.setAttribute("data-focus-match", "true");
+      });
+
+      ch.edges.forEach(function(edgeKey) {
+        var edge = svg.querySelector('path[data-edge-key="' + edgeKey + '"]');
+        if (edge) edge.setAttribute("data-focus-match", "true");
+        var label = svg.querySelector('g[data-edge-label-group="' + edgeKey + '"]');
+        if (label) label.setAttribute("data-focus-match", "true");
+      });
+    }
+
+    function showAll() {
+      svg.removeAttribute("data-focus-active");
+      svg.querySelectorAll("[data-focus-match]").forEach(function(el) {
+        el.removeAttribute("data-focus-match");
+      });
+      chapterPills.forEach(function(p) { p.classList.remove("active"); });
+      stepTitle.textContent = "Tampilan Keseluruhan Alur & Audit";
+      stepDesc.textContent = "Menampilkan semua hubungan alur komputer bilik, meja kasir, layanan HP online, dan 6 titik rawan keamanan secara bersamaan.";
+      stepCounter.textContent = "Semua";
+      pauseStory();
+    }
+
+    function playStory() {
+      isPlaying = true;
+      playIcon.textContent = "⏸";
+      playLabel.textContent = "Jeda";
+      playTimer = setInterval(function() {
+        if (currentStep < CHAPTERS.length - 1) {
+          applyStep(currentStep + 1);
+        } else {
+          applyStep(0);
+        }
+      }, 4500);
+    }
+
+    function pauseStory() {
+      isPlaying = false;
+      playIcon.textContent = "▶";
+      playLabel.textContent = "Putar";
+      clearInterval(playTimer);
+    }
+
+    btnPrev.addEventListener("click", function() {
+      pauseStory();
+      if (currentStep > 0) applyStep(currentStep - 1);
+      else applyStep(CHAPTERS.length - 1);
+    });
+
+    btnNext.addEventListener("click", function() {
+      pauseStory();
+      if (currentStep < CHAPTERS.length - 1) applyStep(currentStep + 1);
+      else applyStep(0);
+    });
+
+    btnPlay.addEventListener("click", function() {
+      if (isPlaying) pauseStory();
+      else playStory();
+    });
+
+    btnReset.addEventListener("click", showAll);
+
+    chapterPills.forEach(function(pill) {
+      pill.addEventListener("click", function() {
+        pauseStory();
+        var step = parseInt(pill.getAttribute("data-step"), 10);
+        applyStep(step);
+      });
+    });
+
+    // Klik Komponen Normal
+    svg.querySelectorAll("[data-node-id]").forEach(function(node) {
+      node.addEventListener("click", function(e) {
+        e.stopPropagation();
+        var id = node.getAttribute("data-node-id");
+        var info = NODE_DETAILS[id];
+        if (info) {
+          chipEyebrow.textContent = info.role;
+          chipTitle.textContent = info.title;
+          chipBody.innerHTML = "<p>" + info.desc + "</p>";
+          chipSecWrap.innerHTML = "";
+          chipSource.innerHTML = "Lokasi Kode: <code>" + info.source + "</code>";
+          focusChip.classList.add("open");
+
+          svg.setAttribute("data-focus-active", "true");
+          svg.querySelectorAll("[data-focus-match]").forEach(function(el) {
+            el.removeAttribute("data-focus-match");
+          });
+          node.setAttribute("data-focus-match", "true");
+
+          svg.querySelectorAll('path[data-edge-from="' + id + '"], path[data-edge-to="' + id + '"]').forEach(function(edge) {
+            edge.setAttribute("data-focus-match", "true");
+          });
+        }
+      });
+    });
+
+    // Klik Hotspot Titik Rawan Keamanan
+    svg.querySelectorAll("[data-hotspot-id]").forEach(function(hs) {
+      hs.addEventListener("click", function(e) {
+        e.stopPropagation();
+        var id = hs.getAttribute("data-hotspot-id");
+        var sec = HOTSPOT_DETAILS[id];
+        if (sec) {
+          chipEyebrow.textContent = "🚨 AUDIT TITIK RAWAN KEAMANAN";
+          chipTitle.textContent = sec.title;
+          chipBody.innerHTML = "<p><strong>Bagian:</strong> " + sec.role + "</p><p style='margin-top:0.35rem;'>" + sec.desc + "</p>";
+          chipSecWrap.innerHTML = 
+            "<div class='focus-chip-sec-box'>" +
+              "<strong>Potensi Kerugian / Celah:</strong>" + sec.risk +
+              "<strong style='margin-top:0.45rem; color:var(--backend-stroke);'>Solusi Pengamanan / Ide Improvement:</strong>" + sec.mitigation +
+            "</div>";
+          chipSource.innerHTML = "Status Audit: <strong style='color:var(--sec-alert);'>Perlu Pengawasan Ketat</strong>";
+          focusChip.classList.add("open");
+
+          svg.setAttribute("data-focus-active", "true");
+          svg.querySelectorAll("[data-focus-match]").forEach(function(el) {
+            el.removeAttribute("data-focus-match");
+          });
+          hs.setAttribute("data-focus-match", "true");
+        }
+      });
+    });
+
+    // Tombol Toggle Mode Keamanan
+    var btnSecMode = document.getElementById("btn-sec-mode");
+    var secModeActive = false;
+    btnSecMode.addEventListener("click", function() {
+      secModeActive = !secModeActive;
+      if (secModeActive) {
+        btnSecMode.style.background = "var(--sec-alert)";
+        btnSecMode.style.color = "#ffffff";
+        alert("Mode Audit Keamanan Aktif!\nKlik tanda seru merah (!) pada diagram untuk membaca titik rawan kecurangan kasir, pembobolan bilik, manipulasi jam, dan kebocoran data.");
+      } else {
+        btnSecMode.style.background = "";
+        btnSecMode.style.color = "";
+      }
+    });
+
+    chipClose.addEventListener("click", function() {
+      focusChip.classList.remove("open");
+    });
+
+    var btnTheme = document.getElementById("btn-theme");
+    var themeLabel = document.getElementById("theme-label");
+    btnTheme.addEventListener("click", function() {
+      var current = document.documentElement.getAttribute("data-theme");
+      var next = current === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", next);
+      themeLabel.textContent = next === "dark" ? "Gelap" : "Terang";
+      try { localStorage.setItem("archify-theme", next); } catch(_) {}
+    });
+
+    var btnPreset = document.getElementById("btn-preset");
+    var presetMenu = document.getElementById("preset-menu");
+    var presetLabel = document.getElementById("preset-label");
+
+    btnPreset.addEventListener("click", function(e) {
+      e.stopPropagation();
+      presetMenu.classList.toggle("open");
+    });
+
+    document.addEventListener("click", function() {
+      presetMenu.classList.remove("open");
+    });
+
+    presetMenu.querySelectorAll("[data-preset]").forEach(function(opt) {
+      opt.addEventListener("click", function() {
+        var preset = opt.getAttribute("data-preset");
+        document.documentElement.setAttribute("data-preset", preset);
+        svg.setAttribute("data-preset", preset);
+        presetLabel.textContent = opt.textContent.trim();
+        presetMenu.classList.remove("open");
+      });
+    });
+
+    var btnPresent = document.getElementById("btn-present");
+    btnPresent.addEventListener("click", function() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(function(){});
+      } else {
+        document.exitFullscreen();
+      }
+    });
+
+    var currentZoom = 1;
+    var navZoomIn = document.getElementById("nav-zoom-in");
+    var navZoomOut = document.getElementById("nav-zoom-out");
+    var navZoomReset = document.getElementById("nav-zoom-reset");
+    var navFind = document.getElementById("nav-find");
+
+    navZoomIn.addEventListener("click", function() {
+      currentZoom = Math.min(currentZoom + 0.15, 2.0);
+      svg.style.transform = "scale(" + currentZoom + ")";
+      svg.style.transformOrigin = "top center";
+      navZoomReset.textContent = Math.round(currentZoom * 100) + "%";
+    });
+
+    navZoomOut.addEventListener("click", function() {
+      currentZoom = Math.max(currentZoom - 0.15, 0.6);
+      svg.style.transform = "scale(" + currentZoom + ")";
+      svg.style.transformOrigin = "top center";
+      navZoomReset.textContent = Math.round(currentZoom * 100) + "%";
+    });
+
+    navZoomReset.addEventListener("click", function() {
+      currentZoom = 1;
+      svg.style.transform = "scale(1)";
+      navZoomReset.textContent = "100%";
+    });
+
+    navFind.addEventListener("click", function() {
+      var query = prompt("Cari kata kunci (misal: 'kasir', 'rawan', 'curang', 'makanan', 'afk'):");
+      if (query) {
+        var found = null;
+        Object.keys(HOTSPOT_DETAILS).forEach(function(k) {
+          if (HOTSPOT_DETAILS[k].title.toLowerCase().includes(query.toLowerCase()) || HOTSPOT_DETAILS[k].desc.toLowerCase().includes(query.toLowerCase())) {
+            found = 'hotspot-' + k;
+          }
+        });
+        if (!found) {
+          Object.keys(NODE_DETAILS).forEach(function(key) {
+            if (key.toLowerCase().includes(query.toLowerCase()) || NODE_DETAILS[key].title.toLowerCase().includes(query.toLowerCase())) {
+              found = 'node-' + key;
+            }
+          });
+        }
+        if (found) {
+          var el = svg.querySelector('#' + found);
+          if (el) el.dispatchEvent(new Event('click'));
+        } else {
+          alert("Kata kunci tidak ditemukan.");
+        }
+      }
+    });
+
+    document.addEventListener("keydown", function(e) {
+      if (e.key === "t" || e.key === "T") btnTheme.click();
+      if (e.key === "p" || e.key === "P") btnPlay.click();
+      if (e.key === "[") btnPrev.click();
+      if (e.key === "]") btnNext.click();
+      if (e.key === "Escape") { focusChip.classList.remove("open"); showAll(); }
+    });
+
+    applyStep(0);
+  </script>
+</body>
+</html>
