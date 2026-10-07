@@ -10,6 +10,7 @@ import { ClientNetworkService } from '../network/clientNetwork';
 import { OpCode, Packet, RemoteCommandPayload, SessionData, KillProcessPayload, AdminAuthResult } from '../../shared/protocol';
 
 import { GCHubDialog, DialogType } from '../components/GCHubDialog';
+import { Switch } from '../../shared/ui/primitives';
 import { applyTheme, getTheme, type Theme } from '../../shared/theme';
 
 type AdminAction = 'config' | 'tech' | 'exit';
@@ -44,6 +45,9 @@ export const ClientView: React.FC = () => {
   const [theme, setTheme] = useState<Theme>(getTheme);
   const [configTab, setConfigTab] = useState<'network' | 'provision'>('network');
   const [provisionStatus, setProvisionStatus] = useState<any>(null);
+  // Saklar Mode Kiosk dari gc-agent: undefined = sedang dibaca, null = agent belum terpasang
+  const [kiosk, setKiosk] = useState<boolean | null | undefined>(undefined);
+  const [kioskPending, setKioskPending] = useState(false);
   const [isProvisioning, setIsProvisioning] = useState(false);
 
   // Custom Dialog Popup State
@@ -446,6 +450,11 @@ export const ClientView: React.FC = () => {
           params: { pid: kill.pid, processName: kill.processName, success: result.success, message: result.message },
         });
         await sendProcessList(true);
+      } else if (action === 'set_kiosk' && typeof params?.enabled === 'boolean') {
+        const res = await api?.setKioskEnabled?.(params.enabled);
+        if (res?.success) setKiosk(params.enabled);
+        else console.warn('[KIOSK] Saklar dari kasir gagal:', res?.message);
+        await ClientNetworkService.sendTelemetry();
       } else if (action === 'restart') {
         notify('PC akan restart', 'Kasir me-restart PC ini.', 'warning');
         setTimeout(async () => {
@@ -672,6 +681,8 @@ export const ClientView: React.FC = () => {
 
   const fetchProvisionStatus = async () => {
     const api = (window as any).electronAPI;
+    setKiosk(undefined);
+    api?.getKioskEnabled?.().then((on: boolean | undefined) => setKiosk(on ?? null)).catch(() => setKiosk(null));
     if (api?.getProvisionStatus) {
       try {
         const res = await api.getProvisionStatus();
@@ -680,6 +691,19 @@ export const ClientView: React.FC = () => {
         console.warn('[PROVISION] Error fetching status:', err);
       }
     }
+  };
+
+  const handleToggleKiosk = async (enabled: boolean) => {
+    const api = (window as any).electronAPI;
+    setKioskPending(true);
+    const res = await api?.setKioskEnabled?.(enabled).catch((e: any) => ({ success: false, message: e?.message }));
+    setKioskPending(false);
+    if (!res?.success) {
+      showCustomAlert('Mode Kiosk Gagal Diubah', res?.message || 'gc-agent tidak menjawab. Coba lagi.', 'error');
+      return;
+    }
+    setKiosk(enabled);
+    ClientNetworkService.sendTelemetry();
   };
 
   const handleRunProvision = async () => {
@@ -1385,6 +1409,29 @@ export const ClientView: React.FC = () => {
                       <span>Matikan Sticky Keys Shift &amp; error popup Windows.</span>
                     </li>
                   </ul>
+                </div>
+
+                {/* Saklar Mode Kiosk: lepas semua pembatasan Windows untuk perawatan atau update client */}
+                <div className="flex items-start gap-3 p-3 rounded-sm border border-hairline bg-surface-2">
+                  <div className="flex-1 min-w-0 text-xs">
+                    <div className="font-bold text-text-primary">Mode Kiosk</div>
+                    <div className="text-[11px] text-text-muted mt-0.5">
+                      {kiosk === undefined && 'Membaca status gc-agent...'}
+                      {kiosk === null && 'gc-agent belum terpasang. Jalankan 1-Click Setup dulu.'}
+                      {kiosk === true && 'Nyala. Task Manager, Run, Control Panel, dan Regedit dikunci. Aplikasi bilik dibuka lagi kalau ditutup.'}
+                      {kiosk === false && 'Mati. Windows bebas dipakai dan aplikasi bilik boleh ditutup. Nyalakan lagi setelah perawatan.'}
+                    </div>
+                  </div>
+                  {kiosk === undefined ? (
+                    <div className="h-5 w-9 flex-none rounded-sm bg-surface-3 animate-pulse" aria-hidden />
+                  ) : (
+                    <Switch
+                      checked={kiosk === true}
+                      disabled={kiosk === null || kioskPending}
+                      onChange={handleToggleKiosk}
+                      label="Mode Kiosk"
+                    />
+                  )}
                 </div>
 
                 {/* Action Buttons */}

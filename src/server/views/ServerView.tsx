@@ -567,6 +567,13 @@ export const ServerView: React.FC = () => {
     } else if (action === 'shutdown') {
       api?.sendToClient(pc.name, OpCode.REMOTE_COMMAND, { action: 'shutdown' });
       triggerToast('Remote Shutdown', `Perintah shutdown dikirim ke ${pc.name}`);
+    } else if (action === 'kiosk') {
+      const enabled = payload === true;
+      const res = await api?.setClientKiosk?.(pc.name, enabled);
+      triggerToast(
+        res?.success ? (enabled ? 'Mode Kiosk Dinyalakan' : 'Mode Kiosk Dimatikan') : 'Mode Kiosk Gagal',
+        res?.success ? `Perintah dikirim ke ${pc.name}. Status di panel diperbarui begitu PC menjawab.` : res?.message || `Tidak dapat mengubah Mode Kiosk ${pc.name}.`
+      );
     } else if (action === 'wake_on_lan') {
       // Broadcast, not the PC's IP: a switched-off PC has no ARP entry, so a unicast never reaches it
       if (api?.wakeOnLan) {

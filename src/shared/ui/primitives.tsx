@@ -8,6 +8,29 @@ export const api = () => (window as any).electronAPI;
 export const denied = (res: any) => res && res.success === false;
 
 export const FOCUS = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
+// On/off switch. A button with role="switch": Space and Enter flip it, screen readers announce the
+// state. Square corners per DESIGN.md (rounded-full is for status dots only).
+export const Switch: React.FC<{ checked: boolean; onChange: (next: boolean) => void; label: string; disabled?: boolean }> = ({ checked, onChange, label, disabled }) => (
+  <button
+    type="button"
+    role="switch"
+    aria-checked={checked}
+    aria-label={label}
+    disabled={disabled}
+    onClick={() => onChange(!checked)}
+    className={cn(
+      'relative inline-flex flex-none items-center h-5 w-9 rounded-sm border transition-colors duration-150 disabled:opacity-50 disabled:pointer-events-none',
+      checked ? 'bg-primary border-primary' : 'bg-surface-3 border-hairline-strong',
+      FOCUS
+    )}
+  >
+    <span
+      aria-hidden
+      className={cn('h-3.5 w-3.5 rounded-[2px] transition-transform duration-150', checked ? 'translate-x-[18px] bg-on-primary' : 'translate-x-[2px] bg-text-muted')}
+    />
+  </button>
+);
+
 export const INPUT = 'h-9 w-full px-3 rounded-sm bg-surface-3 border border-hairline text-[13px] text-text-primary placeholder:text-text-disabled focus:outline-none focus:border-primary disabled:opacity-60';
 export const BTN_PRIMARY = `inline-flex items-center justify-center gap-2 h-9 px-4 rounded-sm bg-primary text-on-primary text-[13px] font-semibold hover:bg-primary-hover active:translate-y-px disabled:opacity-50 disabled:pointer-events-none transition-colors duration-150 ${FOCUS}`;
 export const BTN_SECONDARY = `inline-flex items-center justify-center gap-2 h-9 px-3 rounded-sm bg-surface-2 border border-hairline text-[13px] font-medium text-text-primary hover:bg-surface-3 hover:border-hairline-strong active:translate-y-px disabled:opacity-50 disabled:pointer-events-none transition-colors duration-150 ${FOCUS}`;

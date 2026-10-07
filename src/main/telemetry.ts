@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { exec, execFile } from 'child_process';
 import type { HardwareTelemetryPayload } from '../shared/protocol';
+import { AgentClient } from './agentClient';
 
 /**
  * TelemetryService: Background hardware and OS health monitoring
@@ -135,6 +136,8 @@ export class TelemetryService {
     const ram = this.getRamMetrics();
     const disk = this.getDiskMetrics();
     const gpuName = this.getGpuName();
+    // Lets the cashier see a booth left out of kiosk mode; undefined when gc-agent is not installed
+    const kioskEnabled = await AgentClient.getKioskEnabled().catch(() => undefined);
 
     return {
       pcId,
@@ -148,6 +151,7 @@ export class TelemetryService {
       gpuName,
       uptimeSeconds: Math.round(os.uptime()),
       activeApp,
+      kioskEnabled,
       timestamp: Date.now()
     };
   }

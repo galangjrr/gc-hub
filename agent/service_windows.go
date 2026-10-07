@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/registry"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/eventlog"
 	"golang.org/x/sys/windows/svc/mgr"
@@ -143,6 +144,8 @@ func uninstallService() error {
 	if dir, err := installDir(); err == nil {
 		_ = os.RemoveAll(dir)
 	}
+	// Forget the kiosk switch so a later install starts locked again.
+	_ = registry.DeleteKey(registry.LOCAL_MACHINE, kioskKey)
 	return nil
 }
 

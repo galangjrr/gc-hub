@@ -40,6 +40,8 @@ async function main() {
     if (req.cmd === 'apply-policy') return { id: req.id, ok: true, applied: ['DisableTaskMgr', 'NoRun'] };
     if (req.cmd === 'clear-policy') return { id: req.id, ok: true, applied: [] };
     if (req.cmd === 'kill-process') return { id: req.id, ok: true };
+    if (req.cmd === 'ping') return { id: req.id, ok: true, kioskEnabled: false };
+    if (req.cmd === 'set-kiosk') return { id: req.id, ok: true, kioskEnabled: req.enabled };
     return { id: req.id, ok: false, error: 'perintah tidak dikenal' };
   });
 
@@ -71,6 +73,15 @@ async function main() {
   assert.equal(lastReq.pid, 4321, 'kill forwards the pid');
   assert.equal(lastReq.name, 'chrome.exe', 'kill forwards the process name');
   pass('kill-process framing');
+
+  // 3b. kiosk switch: ping carries the state, set-kiosk sends an explicit boolean
+  assert.equal(await AgentClient.getKioskEnabled(), false, 'ping reports the kiosk switch');
+  assert.equal(lastReq.cmd, 'ping', 'kiosk state is read with ping');
+  const kioskRes = await AgentClient.setKioskEnabled(true);
+  assert.equal(lastReq.cmd, 'set-kiosk', 'switch sends the set-kiosk command');
+  assert.equal(lastReq.enabled, true, 'switch forwards enabled as a boolean');
+  assert.equal(kioskRes.kioskEnabled, true, 'switch returns the new state');
+  pass('kiosk switch framing');
 
   // 4. an agent error (ok:false) rejects rather than resolving silently
   const errServer = server;

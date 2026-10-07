@@ -46,7 +46,7 @@ func applyPolicy(c PolicyConfig) ([]string, error) {
 	var applied []string
 	for _, pv := range policyValues {
 		on := pv.want(c)
-		if err := setOrDeleteDword(pv.key, pv.name, on); err != nil {
+		if err := setOrDeleteDword(registry.LOCAL_MACHINE, pv.key, pv.name, on); err != nil {
 			return applied, fmt.Errorf("%s: %w", pv.name, err)
 		}
 		if on {
@@ -62,8 +62,40 @@ func clearPolicy() error {
 	return err
 }
 
-func setOrDeleteDword(keyPath, name string, on bool) error {
-	k, _, err := registry.CreateKey(registry.LOCAL_MACHINE, keyPath, registry.SET_VALUE)
+// The kiosk switch. Off means the operator has taken the booth out of kiosk mode (maintenance,
+// a client update): the policy is cleared, apply-policy clears instead of locking, and the
+// watchdog stops relaunching the client. It lives under HKLM so it survives reboots and only
+// SYSTEM or an administrator can write it directly. A missing or unreadable value means on, so a
+// fresh install is locked and a damaged value never unlocks the booth by accident.
+var kioskRoot = registry.LOCAL_MACHINE
+
+const (
+	kioskKey   = `SOFTWARE\GC Hub Agent`
+	kioskValue = "KioskDisabled"
+)
+
+func kioskEnabled() bool {
+	k, err := registry.OpenKey(kioskRoot, kioskKey, registry.QUERY_VALUE)
+	if err != nil {
+		return true
+	}
+	defer k.Close()
+	v, _, err := k.GetIntegerValue(kioskValue)
+	return err != nil || v == 0
+}
+
+func setKioskEnabled(on bool) error {
+	if err := setOrDeleteDword(kioskRoot, kioskKey, kioskValue, !on); err != nil {
+		return err
+	}
+	if on {
+		return nil // the client re-applies the policy on its next lock
+	}
+	return clearPolicy()
+}
+
+func setOrDeleteDword(root registry.Key, keyPath, name string, on bool) error {
+	k, _, err := registry.CreateKey(root, keyPath, registry.SET_VALUE)
 	if err != nil {
 		return err
 	}
