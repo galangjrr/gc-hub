@@ -35,7 +35,7 @@ interface AgentResponse {
   applied?: string[];
 }
 
-function sendCommand(cmd: string, policy?: KioskPolicy): Promise<AgentResponse> {
+function sendCommand(cmd: string, extra: Record<string, unknown> = {}): Promise<AgentResponse> {
   return new Promise((resolve, reject) => {
     const id = Math.random().toString(36).slice(2);
     const socket = net.connect(PIPE_PATH);
@@ -53,7 +53,7 @@ function sendCommand(cmd: string, policy?: KioskPolicy): Promise<AgentResponse> 
     socket.setTimeout(TIMEOUT_MS, () => done(new Error('gc-agent tidak merespons')));
     socket.on('error', (err) => done(err));
     socket.on('connect', () => {
-      socket.write(JSON.stringify({ id, cmd, policy: policy ?? LOCKED_POLICY }) + '\n');
+      socket.write(JSON.stringify({ id, cmd, ...extra }) + '\n');
     });
     socket.on('data', (chunk) => {
       buf += chunk.toString('utf8');
@@ -73,16 +73,26 @@ function sendCommand(cmd: string, policy?: KioskPolicy): Promise<AgentResponse> 
 export const AgentClient = {
   /** Apply the full kiosk lockdown policy (Task Manager, Run, Control Panel, Registry tools) at HKLM. */
   applyKioskPolicy(): Promise<AgentResponse> {
-    return sendCommand('apply-policy', LOCKED_POLICY);
+    return sendCommand('apply-policy', { policy: LOCKED_POLICY });
   },
 
   /** Remove every policy the agent manages, returning the machine to an unlocked state. */
   clearKioskPolicy(): Promise<AgentResponse> {
     return sendCommand('clear-policy', {
-      disableTaskMgr: false,
-      disableControlPanel: false,
-      disableRunDialog: false,
-      disableRegistryTools: false
+      policy: {
+        disableTaskMgr: false,
+        disableControlPanel: false,
+        disableRunDialog: false,
+        disableRegistryTools: false
+      }
     });
+  },
+
+  /**
+   * Terminate a process with SYSTEM rights. The agent re-checks its own guard (protected system
+   * and billing processes are never killed), so this is not a kill-anything primitive.
+   */
+  killProcess(pid: number, name: string): Promise<AgentResponse> {
+    return sendCommand('kill-process', { pid, name });
   }
 };

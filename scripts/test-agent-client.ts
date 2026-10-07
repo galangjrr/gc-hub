@@ -43,6 +43,7 @@ async function main() {
     lastReq = req;
     if (req.cmd === 'apply-policy') return { id: req.id, ok: true, applied: ['DisableTaskMgr', 'NoRun'] };
     if (req.cmd === 'clear-policy') return { id: req.id, ok: true, applied: [] };
+    if (req.cmd === 'kill-process') return { id: req.id, ok: true };
     return { id: req.id, ok: false, error: 'perintah tidak dikenal' };
   });
 
@@ -67,7 +68,15 @@ async function main() {
   );
   pass('clear-policy framing');
 
-  // 3. an agent error (ok:false) rejects rather than resolving silently
+  // 3. kill-process forwards the pid and name the caller passed
+  const killRes = await AgentClient.killProcess(4321, 'chrome.exe');
+  assert.equal(killRes.ok, true, 'kill resolves ok');
+  assert.equal(lastReq.cmd, 'kill-process', 'kill sends the kill-process command');
+  assert.equal(lastReq.pid, 4321, 'kill forwards the pid');
+  assert.equal(lastReq.name, 'chrome.exe', 'kill forwards the process name');
+  pass('kill-process framing');
+
+  // 4. an agent error (ok:false) rejects rather than resolving silently
   const errServer = server;
   await new Promise<void>((r) => errServer.close(() => r()));
   try { fs.unlinkSync(sockPath); } catch {}

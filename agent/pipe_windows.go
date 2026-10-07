@@ -27,6 +27,8 @@ type request struct {
 	ID     string       `json:"id"`
 	Cmd    string       `json:"cmd"`
 	Policy PolicyConfig `json:"policy"`
+	PID    uint32       `json:"pid"`
+	Name   string       `json:"name"`
 }
 
 type response struct {
@@ -94,6 +96,8 @@ func (p *pipeServer) dispatch(req request) response {
 		err := clearPolicy()
 		p.mu.Unlock()
 		return result(req.ID, nil, err)
+	case "kill-process":
+		return result(req.ID, nil, killProcess(req.PID, req.Name))
 	default:
 		return response{ID: req.ID, OK: false, Error: "perintah tidak dikenal: " + req.Cmd}
 	}

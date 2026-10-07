@@ -3,6 +3,7 @@ import dgram from 'dgram';
 import { RemoteProcessItem } from '../shared/protocol';
 import { SecurityManager } from './security';
 import { osEffectsDisabled } from './cleanup';
+import { AgentClient } from './agentClient';
 
 /**
  * SystemService: Handles native Windows OS operations (Process Guard, Process Scan, Kill, Registry, WOL)
@@ -174,6 +175,17 @@ export class SystemService {
 
     if (osEffectsDisabled(`taskkill PID ${pid}`)) {
       return { success: true, message: `Proses ${processName} (PID ${pid}) dimatikan (mode tes).` };
+    }
+
+    // Prefer the SYSTEM agent: it can end an app the booth user launched elevated, which
+    // user-level taskkill cannot. Fall back to taskkill when the agent is absent or refuses.
+    if (process.platform === 'win32') {
+      try {
+        await AgentClient.killProcess(pid, safeName || processName);
+        return { success: true, message: `Proses ${processName} (PID ${pid}) berhasil dihentikan.` };
+      } catch {
+        // agent not installed (dev / unprovisioned) or refused; fall through to taskkill
+      }
     }
     return new Promise((resolve) => {
       execFile('taskkill', ['/F', '/PID', String(pid), '/T'], { windowsHide: true }, (err) => {
