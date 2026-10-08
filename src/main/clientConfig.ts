@@ -2,8 +2,8 @@ import { safeStorage } from 'electron';
 import fs from 'fs';
 
 // The LAN key sits next to the exe, and booth players get an admin desktop (UAC off), so a plain key
-// could be read in Notepad and used for the offline admin check. It is stored DPAPI-encrypted instead;
-// the renderer still sees a plain `lanSecret`.
+// could be read in Notepad and used for the offline admin check. It is stored DPAPI-encrypted instead,
+// and only main holds it decrypted; the renderer never receives it.
 // ponytail: DPAPI only stops reading the file. An admin user can still delete the key and reboot into
 // first-setup mode; the real fix is a SYSTEM service owning this file with a non-admin player account.
 

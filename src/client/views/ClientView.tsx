@@ -7,8 +7,9 @@ import { ClientTaskManagerModal } from '../components/ClientTaskManagerModal';
 import { ClientSecurityBridge } from '../security/securityBridge';
 import { ProcessWatcherGuard } from '../security/processGuard';
 import { ClientNetworkService } from '../network/clientNetwork';
-import { OpCode, Packet, RemoteCommandPayload, SessionData, KillProcessPayload, AdminAuthResult, RenamePcPayload, RenamePcResultPayload } from '../../shared/protocol';
+import { OpCode, Packet, RemoteCommandPayload, SessionData, KillProcessPayload, AdminAuthRequest, AdminAuthResult, RenamePcPayload, RenamePcResultPayload } from '../../shared/protocol';
 import { pcNameError } from '../../shared/pcName';
+import { ADMIN_GRANT_TTL_MS } from '../../shared/lanAuth';
 
 import { GCHubDialog, DialogType } from '../components/GCHubDialog';
 import { applyTheme, getTheme, type Theme } from '../../shared/theme';
@@ -32,12 +33,12 @@ export const ClientView: React.FC = () => {
   const [adminAuthError, setAdminAuthError] = useState('');
   const [adminAuthPending, setAdminAuthPending] = useState(false);
   const adminActionRef = useRef<AdminAction>('config');
-  // Mode Teknisi: pembatasan Windows dilepas sementara setelah akun admin terverifikasi
+  // Mode Teknisi: alat Windows untuk perbaikan, dibuka setelah akun admin terverifikasi
   const [isTechMode, setIsTechMode] = useState(false);
-  // Kunci LAN yang tersimpan di client-config: dipakai memverifikasi admin saat server tidak terjangkau
-  const savedLanSecretRef = useRef('');
-  // Tebakan Kunci LAN offline tidak dibatasi server, jadi dibatasi di sini: 5 salah = tunggu 60 detik
-  const offlineAuthFailRef = useRef({ count: 0, lockedUntil: 0 });
+  // Kunci LAN hanya dipegang main process; UI cuma tahu sudah diisi atau belum
+  const [hasLanSecret, setHasLanSecret] = useState(false);
+  const [cfgError, setCfgError] = useState('');
+  const [cfgSaving, setCfgSaving] = useState(false);
   const [cfgServerIp, setCfgServerIp] = useState(ClientNetworkService.getServerUrl().replace(/^ws:\/\//, '').replace(/:7894$/, ''));
   const [cfgPcId, setCfgPcId] = useState(workstationInfo.pcId);
   const [machineHostname, setMachineHostname] = useState('');
@@ -297,11 +298,7 @@ export const ClientView: React.FC = () => {
               ClientNetworkService.setServerUrl(url);
               setCfgServerIp(url.replace(/^ws:\/\//, '').replace(/:7894$/, ''));
             }
-            if (cfg.lanSecret) {
-              savedLanSecretRef.current = cfg.lanSecret;
-              ClientNetworkService.setLanSecret(cfg.lanSecret);
-              setCfgLanSecret(cfg.lanSecret);
-            }
+            setHasLanSecret(!!cfg.hasLanSecret);
             // Manual name from config wins; otherwise follow the Windows computer name.
             const pcId = (cfg.pcId || '').trim() || hostname;
             if (pcId) {
@@ -330,8 +327,7 @@ export const ClientView: React.FC = () => {
       pausedRef.current = false; // sesi yang di-pause dikirim ulang dengan SCREEN_LOCK sesudahnya
       setIsSubmitting(false);
       if (packet.payload) {
-        const isAdmin = packet.payload.userType === 'admin' || packet.payload.username?.toUpperCase() === 'ADMIN';
-        ClientSecurityBridge.unlockWorkstation(isAdmin);
+        ClientSecurityBridge.unlockWorkstation();
         setActiveSession(packet.payload);
         setIsAfkLocked(false);
         warnedRef.current = { five: false, one: false };
@@ -456,11 +452,9 @@ export const ClientView: React.FC = () => {
           return;
         }
         const clean = name.trim();
-        // Keep everything else in the config; the live server URL wins over the default a missing file reports
-        const cfg = await api?.getClientConfig?.().catch(() => null);
-        const saved = await api?.saveClientConfig?.({ ...(cfg || {}), serverUrl: ClientNetworkService.getServerUrl(), pcId: clean, pcName: clean }).catch(() => false);
-        if (!saved) {
-          reply({ name, success: false, message: 'File client-config.json gagal ditulis.' });
+        const saved = await api?.setPcName?.(clean).catch(() => null);
+        if (!saved?.success) {
+          reply({ name, success: false, message: saved?.message || 'File client-config.json gagal ditulis.' });
           return;
         }
         // Answer first: the server must see it before this booth registers under the new name
@@ -559,11 +553,19 @@ export const ClientView: React.FC = () => {
     });
 
     // Balasan verifikasi admin untuk pengaturan bilik
-    const unsubAdminAuth = ClientNetworkService.on(OpCode.ADMIN_AUTH, (packet: Packet<AdminAuthResult>) => {
-      setAdminAuthPending(false);
+    // Main memeriksa grant dari server; tanpa itu aksi admin ditolak main walau UI terbuka
+    const unsubAdminAuth = ClientNetworkService.on(OpCode.ADMIN_AUTH, async (packet: Packet<AdminAuthResult>) => {
       if (!packet.payload?.success) {
+        setAdminAuthPending(false);
         setAdminPasswordInput('');
         setAdminAuthError(packet.payload?.message || 'Akun admin ditolak server kasir.');
+        return;
+      }
+      const api = (window as any).electronAPI;
+      const granted = api?.confirmAdminGrant ? await api.confirmAdminGrant(packet.payload.grant).catch(() => null) : { success: true };
+      setAdminAuthPending(false);
+      if (!granted?.success) {
+        setAdminAuthError(granted?.message || 'Verifikasi admin gagal. Coba lagi.');
         return;
       }
       runAdminActionRef.current();
@@ -762,12 +764,21 @@ export const ClientView: React.FC = () => {
     );
   };
 
-  const endTechMode = () => {
-    setIsTechMode(false);
-    ClientSecurityBridge.unlockWorkstation(false);
-  };
+  const endTechMode = () => setIsTechMode(false);
 
-  // Aksi yang wajib akun admin: pengaturan bilik, Mode Teknisi (lepas pembatasan Windows), tutup app
+  // Izin admin di main hanya hidup selama layar admin terbuka
+  useEffect(() => {
+    if (!isTechMode && !showConfigModal) (window as any).electronAPI?.endAdminGrant?.();
+  }, [isTechMode, showConfigModal]);
+
+  // Izin admin di main kedaluwarsa; Mode Teknisi ikut selesai supaya tombol alat tidak diam saja
+  useEffect(() => {
+    if (!isTechMode) return;
+    const t = setTimeout(() => setIsTechMode(false), ADMIN_GRANT_TTL_MS);
+    return () => clearTimeout(t);
+  }, [isTechMode]);
+
+  // Aksi yang wajib akun admin: pengaturan bilik, Mode Teknisi (alat perbaikan Windows), tutup app
   const runAdminAction = (action: AdminAction) => {
     setShowAdminAuthModal(false);
     setAdminUserInput('');
@@ -775,9 +786,10 @@ export const ClientView: React.FC = () => {
     setAdminAuthError('');
     if (action === 'config') {
       fetchProvisionStatus();
+      setCfgLanSecret('');
+      setCfgError('');
       setShowConfigModal(true);
     } else if (action === 'tech') {
-      ClientSecurityBridge.unlockWorkstation(true);
       setIsTechMode(true);
     } else {
       ClientSecurityBridge.exitApp();
@@ -789,9 +801,9 @@ export const ClientView: React.FC = () => {
 
   const requireAdmin = (action: AdminAction) => {
     adminActionRef.current = action;
-    // Client baru (belum pernah diisi Kunci LAN dan belum tersambung): tidak ada yang bisa memverifikasi.
-    // Pengaturan tetap dibuka supaya setup pertama bisa jalan; aksi lain ditolak.
-    if (!isConnectedToServer && !savedLanSecretRef.current) {
+    // Client baru tanpa Kunci LAN: tidak ada yang bisa memverifikasi, dan server juga menolak paketnya.
+    // Pengaturan tetap dibuka supaya setup pertama bisa jalan; aksi lain ditolak. Main memakai aturan yang sama.
+    if (!hasLanSecret) {
       if (action === 'config') return runAdminAction(action);
       notify('Butuh verifikasi admin', 'Sambungkan PC ke server kasir atau isi Kunci LAN di pengaturan bilik dulu.', 'warning');
       return;
@@ -803,36 +815,33 @@ export const ClientView: React.FC = () => {
     setShowAdminAuthModal(true);
   };
 
-  const handleVerifyAdminAuth = (e: React.FormEvent) => {
+  const handleVerifyAdminAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (adminAuthPending) return;
     const user = adminUserInput.trim();
     const secret = adminPasswordInput.trim();
+    const api = (window as any).electronAPI;
 
     if (isConnectedToServer) {
       if (!user || !secret) return setAdminAuthError('Isi username dan password admin.');
       setAdminAuthError('');
       setAdminAuthPending(true);
-      ClientNetworkService.send(OpCode.ADMIN_AUTH, { username: user, password: secret });
+      // Nonce dari main dijawab server dengan grant bertanda tangan Kunci LAN
+      const nonce = await api?.beginAdminAuth?.().catch(() => undefined);
+      ClientNetworkService.send(OpCode.ADMIN_AUTH, { username: user, password: secret, nonce } satisfies AdminAuthRequest);
       return;
     }
 
-    // Offline: cocokkan dengan Kunci LAN yang tersimpan
-    const fail = offlineAuthFailRef.current;
-    if (fail.lockedUntil > Date.now()) {
-      return setAdminAuthError('Terlalu banyak percobaan salah. Tunggu 1 menit.');
-    }
+    // Offline: main mencocokkan dengan Kunci LAN yang tersimpan, termasuk batas 5 salah per 60 detik
     if (!secret) return setAdminAuthError('Isi Kunci LAN.');
-    if (secret !== savedLanSecretRef.current) {
-      fail.count++;
-      if (fail.count >= 5) {
-        fail.count = 0;
-        fail.lockedUntil = Date.now() + 60_000;
-      }
+    if (!api?.verifyAdminLanKey) return setAdminAuthError('Verifikasi offline hanya jalan di aplikasi client Windows.');
+    setAdminAuthPending(true);
+    const res = await api.verifyAdminLanKey(secret).catch(() => null);
+    setAdminAuthPending(false);
+    if (!res?.success) {
       setAdminPasswordInput('');
-      return setAdminAuthError('Kunci LAN salah.');
+      return setAdminAuthError(res?.message || 'Kunci LAN salah.');
     }
-    offlineAuthFailRef.current = { count: 0, lockedUntil: 0 };
     runAdminAction(adminActionRef.current);
   };
 
@@ -847,36 +856,39 @@ export const ClientView: React.FC = () => {
   }, [adminAuthPending]);
 
   // Simpan Konfigurasi Jaringan LAN (Server IP & PC ID)
-  const handleSaveNetworkConfig = (e: React.FormEvent) => {
+  const handleSaveNetworkConfig = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (cfgSaving) return;
     let rawIp = cfgServerIp.trim();
     if (!rawIp) rawIp = '127.0.0.1';
     const formattedUrl = rawIp.startsWith('ws://') || rawIp.startsWith('wss://') ? rawIp : `ws://${rawIp}:7894`;
     // Empty field = follow the Windows computer name.
     const manualPcId = cfgPcId.trim();
     const cleanPcId = manualPcId || machineHostname || 'PC-01';
+    const newSecret = cfgLanSecret.trim();
 
-    const cleanSecret = cfgLanSecret.trim();
-    savedLanSecretRef.current = cleanSecret;
-    ClientNetworkService.setLanSecret(cleanSecret);
+    // Main checks the admin grant and the values; nothing is applied unless it saved
+    const api = (window as any).electronAPI;
+    if (api?.saveClientConfig) {
+      setCfgSaving(true);
+      const res = await api.saveClientConfig({
+        serverUrl: formattedUrl,
+        ...(manualPcId ? { pcId: manualPcId } : {}),
+        ...(newSecret ? { lanSecret: newSecret } : {}),
+      }).catch(() => null);
+      setCfgSaving(false);
+      if (!res?.success) {
+        setCfgError(res?.message || 'File client-config.json gagal ditulis.');
+        return;
+      }
+    }
+
+    if (newSecret) setHasLanSecret(true);
+    setCfgLanSecret('');
     ClientNetworkService.setServerUrl(formattedUrl);
     ClientNetworkService.setWorkstationConfig(cleanPcId, cleanPcId);
     setWorkstationInfo({ pcId: cleanPcId, pcName: cleanPcId, mac: workstationInfo.mac });
     setShowConfigModal(false);
-
-    const api = (window as any).electronAPI;
-    if (api?.saveClientConfig) {
-      Promise.resolve(api.saveClientConfig({
-        serverIp: rawIp.replace(/^ws:\/\//, '').replace(/:7894$/, ''),
-        serverPort: 7894,
-        serverUrl: formattedUrl,
-        ...(manualPcId ? { pcId: manualPcId, pcName: manualPcId } : {}),
-        lanSecret: cleanSecret
-      })).then(ok => {
-        if (!ok) notify('Konfigurasi belum tersimpan', 'File client-config.json gagal ditulis. Setelan ini hilang saat app dibuka ulang.', 'error');
-      });
-    }
-
     notify('Konfigurasi disimpan', `Menghubungkan ke ${formattedUrl} (${cleanPcId})...`, 'info');
     ClientNetworkService.connect(formattedUrl);
   };
@@ -1156,7 +1168,7 @@ export const ClientView: React.FC = () => {
                 <>
                   <p className="text-[13px] text-text-muted">
                     {adminActionRef.current === 'tech'
-                      ? 'Pembatasan Windows dilepas sementara untuk perbaikan. Masuk dengan akun admin server kasir.'
+                      ? 'Alat perbaikan Windows dibuka sementara. Masuk dengan akun admin server kasir.'
                       : 'Masuk dengan akun admin server kasir.'}
                   </p>
                   <div className="space-y-1.5">
@@ -1277,7 +1289,7 @@ export const ClientView: React.FC = () => {
                     <input 
                       type="text"
                       value={cfgServerIp}
-                      onChange={e => setCfgServerIp(e.target.value)}
+                      onChange={e => { setCfgServerIp(e.target.value); setCfgError(''); }}
                       placeholder="Contoh: 192.168.1.100 atau localhost"
                       className="w-full bg-transparent text-[13px] font-mono text-text-primary focus:outline-none placeholder:text-text-disabled"
                       autoFocus
@@ -1293,7 +1305,7 @@ export const ClientView: React.FC = () => {
                       id="cfg-pc-id"
                       type="text"
                       value={cfgPcId}
-                      onChange={e => setCfgPcId(e.target.value)}
+                      onChange={e => { setCfgPcId(e.target.value); setCfgError(''); }}
                       placeholder={machineHostname || 'PC-01'}
                       maxLength={24}
                       className="w-full bg-transparent text-[13px] font-mono font-bold text-primary focus:outline-none placeholder:text-text-disabled"
@@ -1309,13 +1321,15 @@ export const ClientView: React.FC = () => {
                       id="cfg-lan-secret"
                       type="password"
                       value={cfgLanSecret}
-                      onChange={e => setCfgLanSecret(e.target.value)}
-                      placeholder="Salin dari Server: Pengaturan > Keamanan Klien"
+                      onChange={e => { setCfgLanSecret(e.target.value); setCfgError(''); }}
+                      placeholder={hasLanSecret ? 'Sudah terisi. Kosongkan kalau tidak diganti' : 'Salin dari Server: Pengaturan > Keamanan Klien'}
                       autoComplete="off"
                       className="w-full bg-transparent text-[13px] font-mono text-text-primary focus:outline-none placeholder:text-text-disabled"
                     />
                   </div>
                 </div>
+
+                {cfgError && <p role="alert" className="text-[13px] text-error">{cfgError}</p>}
 
                 <div className="flex items-center justify-between pt-1">
                   <span className="text-[11px] font-semibold text-text-muted">Tema layar bilik:</span>
@@ -1344,9 +1358,10 @@ export const ClientView: React.FC = () => {
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 py-2 rounded text-xs font-bold bg-primary text-on-primary hover:bg-primary-hover transition shadow"
+                    disabled={cfgSaving}
+                    className="flex-1 py-2 rounded text-xs font-bold bg-primary text-on-primary hover:bg-primary-hover transition shadow disabled:opacity-60 disabled:cursor-wait"
                   >
-                    Simpan &amp; Konek
+                    {cfgSaving ? 'Menyimpan...' : 'Simpan & Konek'}
                   </button>
                 </div>
               </form>

@@ -3,10 +3,6 @@ import { ProcessWatcherGuard } from '../src/client/security/processGuard';
 import { SecurityManager } from '../src/main/security';
 import { SessionCleanupService } from '../src/main/cleanup';
 import { SystemService } from '../src/main/systemService';
-import { 
-  DEFAULT_LOCKED_POLICY, 
-  DEFAULT_UNLOCKED_POLICY 
-} from '../src/client/security/registryPolicy';
 import { OpCode } from '../src/shared/protocol';
 import type { SessionData } from '../src/shared/protocol';
 
@@ -105,16 +101,6 @@ async function runClientKioskTests() {
     // --- 3. Desktop Security & Registry Policies ---
     console.log('\n--- [3. DESKTOP SECURITY & REGISTRY POLICIES] ---');
     
-    // Check Policy definitions matching specification
-    assert(DEFAULT_LOCKED_POLICY.disableTaskMgr === true, 'Policy Check: Task Manager disabled in locked mode');
-    assert(DEFAULT_LOCKED_POLICY.disableControlPanel === true, 'Policy Check: Control Panel disabled in locked mode');
-    assert(DEFAULT_LOCKED_POLICY.disableRunDialog === true, 'Policy Check: Run Dialog disabled in locked mode');
-    assert(DEFAULT_LOCKED_POLICY.disableRegistryTools === true, 'Policy Check: Registry Editor disabled in locked mode');
-
-    assert(DEFAULT_UNLOCKED_POLICY.disableTaskMgr === false, 'Policy Check: Task Manager enabled in unlocked mode');
-    assert(DEFAULT_UNLOCKED_POLICY.disableControlPanel === false, 'Policy Check: Control Panel enabled in unlocked mode');
-    assert(DEFAULT_UNLOCKED_POLICY.disableRunDialog === false, 'Policy Check: Run Dialog enabled in unlocked mode');
-
     // Test Security Manager state toggling
     SecurityManager.setLockdownMode(true);
     assert(SecurityManager.isSystemLocked() === true, 'Security Manager: Lockdown mode active');

@@ -43,6 +43,25 @@ export async function signPacket(secret: string, packet: Packet): Promise<Packet
   return { ...packet, sig: toHex(sig) };
 }
 
+// Proof that the server accepted an admin login for one booth challenge. The booth's main process
+// issues the nonce and checks this, so a renderer that never sees the LAN key cannot fake an admin.
+// The 'gc-admin-grant|' input can never equal a packet's signing input, which starts with an OpCode.
+export const ADMIN_GRANT_TTL_MS = 15 * 60 * 1000;
+
+function grantInput(nonce: string): Uint8Array<ArrayBuffer> {
+  return new TextEncoder().encode(`gc-admin-grant|${nonce}`);
+}
+
+export async function signAdminGrant(secret: string, nonce: string): Promise<string> {
+  return toHex(await globalThis.crypto.subtle.sign('HMAC', await getKey(secret), grantInput(nonce)));
+}
+
+export async function verifyAdminGrant(secret: string, nonce: string, grant: unknown): Promise<boolean> {
+  const sig = typeof grant === 'string' ? fromHex(grant) : null;
+  if (!secret || !sig) return false;
+  return globalThis.crypto.subtle.verify('HMAC', await getKey(secret), sig, grantInput(nonce));
+}
+
 export async function verifyPacket(secret: string, packet: Packet, now = Date.now()): Promise<boolean> {
   if (!packet || typeof packet.ts !== 'number' || Math.abs(now - packet.ts) > MAX_SKEW_MS) return false;
   const sig = typeof packet.sig === 'string' ? fromHex(packet.sig) : null;

@@ -8,9 +8,9 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
-// PolicyConfig mirrors SecurityPolicyConfig in src/client/security/registryPolicy.ts so the
-// client can forward the same shape it already computes. A field left out defaults to false
-// (policy not applied), which is the same as asking the agent to clear it.
+// PolicyConfig mirrors KioskPolicy in src/main/agentClient.ts, the shape the client sends.
+// A field left out defaults to false (policy not applied), which is the same as asking the
+// agent to clear it.
 type PolicyConfig struct {
 	DisableTaskMgr       bool `json:"disableTaskMgr"`
 	DisableControlPanel  bool `json:"disableControlPanel"`

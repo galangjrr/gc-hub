@@ -33,7 +33,7 @@ export enum OpCode {
   ORDER_REQUEST = 'ORDER_REQUEST',
   ORDER_STATUS_UPDATE = 'ORDER_STATUS_UPDATE',
   COUPON_REDEEM = 'COUPON_REDEEM',
-  ADMIN_AUTH = 'ADMIN_AUTH', // client -> server {username,password}; server -> client AdminAuthResult
+  ADMIN_AUTH = 'ADMIN_AUTH', // client -> server AdminAuthRequest; server -> client AdminAuthResult
   HEARTBEAT = 'HEARTBEAT'
 }
 
@@ -74,9 +74,16 @@ export interface AuthPayload {
 }
 
 // Verifikasi admin untuk membuka pengaturan bilik. Tidak pernah memulai sesi.
+export interface AdminAuthRequest {
+  username: string;
+  password: string;
+  nonce?: string; // challenge from the booth's main process, answered with `grant`
+}
+
 export interface AdminAuthResult {
   success: boolean;
   message?: string;
+  grant?: string; // signAdminGrant(lanKey, nonce), checked by the booth's main process
 }
 
 export interface SessionData {
