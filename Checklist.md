@@ -179,7 +179,7 @@ Fitur sekitar 88%. Siap jual ke warnet lain sekitar 62%.
 - [x] Migration 004 sampai 008 sudah jalan
 - [x] Policy public key di web booking dikunci
 - [x] Web booking hidup dengan key baru: dicek 2026-10-08, `/api/data` dan `/api/pcs` jalan, bundle publik cuma berisi `sb_publishable_`
-- [ ] `/api/data` publik berhenti mengirim `daily_pdf_revenue`: kode beres di GC Net Booking `760b259`, live setelah push dan deploy Vercel
+- [x] `/api/data` publik berhenti mengirim `daily_pdf_revenue`: GC Net Booking `760b259`, live dan dicek 2026-10-08
 - [ ] Webhook booking punya retry: migration `009_webhook_retry.sql` siap dan lulus test, tinggal dijalankan di SQL Editor Supabase
 
 ---
