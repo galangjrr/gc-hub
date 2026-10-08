@@ -72,13 +72,14 @@ import { SessionCleanupService } from './cleanup';
 import { SupabaseSyncService, cloudPcId, localPcName, type CloudBooking, type CloudRemoteCommand } from '../server/services/supabaseSyncService';
 import { WindowsProvisioner } from './windowsProvisioner';
 import { RemoteInputInjector } from './remoteInputInjector';
-import { OpCode, AuthPayload, ClientRegisterPayload, type SessionUserType, type SessionBillingType, type AdminAuthRequest, type AdminAuthResult, type Packet, type SetKioskPayload } from '../shared/protocol';
+import { OpCode, AuthPayload, ClientRegisterPayload, type SessionUserType, type SessionBillingType, type AdminAuthRequest, type AdminAuthResult, type Packet, type SetKioskPayload, type SetExePolicyPayload } from '../shared/protocol';
 import { signAdminGrant, signPacket, verifyPacket } from '../shared/lanAuth';
 import { initPcRename, requestPcRename } from '../server/network/pcRename';
 import { pcNameError } from '../shared/pcName';
 import { ClientAdminGate } from './clientAdminGate';
 import { TelemetryService } from './telemetry';
 import { AgentClient } from './agentClient';
+import { parseExeSettings, effectiveExePolicy, exePolicyError, isExeMode, EXE_SETTINGS_KEY, EXE_MODE_LABEL, DEFAULT_EXE_SETTINGS, type ExeMode, type ExePolicy, type ExePolicySettings } from '../shared/exePolicy';
 // Inlined as data URLs by the electron build: the notification window is a data: page and cannot load app files
 import geistFont from '../shared/assets/fonts/Geist.woff2';
 import geistMonoFont from '../shared/assets/fonts/GeistMono.woff2';
@@ -504,6 +505,19 @@ function registerAuthFailure(pcId: string): void {
   authFailures.set(pcId, entry);
 }
 
+// Send a booth its effective exe allowlist. A server that never saved the setting does not manage
+// booths, so each keeps what its own admin set locally.
+function pushExePolicy(pcId: string, pcName: string): void {
+  const settings = parseExeSettings(DbService.getSetting(EXE_SETTINGS_KEY));
+  if (!settings) return;
+  const payload: SetExePolicyPayload = effectiveExePolicy(settings, pcName);
+  ServerNetworkBridge.sendToClient(pcId, OpCode.REMOTE_COMMAND, { action: 'set_exe_policy', params: payload });
+}
+
+function pushExePolicyToAll(): void {
+  for (const c of ServerNetworkBridge.getConnectedClients()) pushExePolicy(c.pcId, c.pcName || c.pcId);
+}
+
 function setupServerNetworkHandlers() {
   initPcRename();
 
@@ -522,6 +536,9 @@ function setupServerNetworkHandlers() {
         categories: DbService.getCategories()
       }
     });
+
+    // Server is the authority on the exe allowlist once configured: overwrite any local booth change
+    pushExePolicy(client.pcId, client.pcName || client.pcId);
   });
 
   // 0. Admin check for admin-only actions on a booth PC (settings, technician mode, exit). Admin role only,
@@ -744,7 +761,10 @@ function setupServerNetworkHandlers() {
     switch (action) {
       case 'telemetry':
         BillingEngine.setActiveApp(client.pcName || client.pcId, typeof params?.activeApp === 'string' ? params.activeApp : undefined);
-        BillingEngine.setKioskState(client.pcName || client.pcId, typeof params?.kioskEnabled === 'boolean' ? params.kioskEnabled : undefined);
+        BillingEngine.setAgentState(client.pcName || client.pcId, {
+          kioskEnabled: typeof params?.kioskEnabled === 'boolean' ? params.kioskEnabled : undefined,
+          exeMode: isExeMode(params?.exeMode) ? params.exeMode : undefined,
+        });
         ui.send('client:telemetry-update', { pcId: client.pcId, telemetry: params });
         break;
       case 'process_list':
@@ -1160,6 +1180,24 @@ ipcMain.handle('system:get-kiosk', async () => {
   return AgentClient.getKioskEnabled().catch(() => undefined);
 });
 
+ipcMain.handle('system:get-exe-policy', async () => {
+  if (isServerMode || process.platform !== 'win32') return undefined;
+  return AgentClient.getExePolicy().catch(() => undefined);
+});
+
+// Same trust as system:set-kiosk: the admin-verified booth panel or a signed set_exe_policy from the server
+ipcMain.handle('system:set-exe-policy', async (_event, policy: unknown) => {
+  if (isServerMode) return { success: false, message: 'Permintaan tidak valid.' };
+  const shapeError = exePolicyError(policy);
+  if (shapeError) return { success: false, message: shapeError };
+  try {
+    await AgentClient.setExePolicy(policy as ExePolicy);
+  } catch (err: any) {
+    return { success: false, message: `gc-agent: ${err?.message || err}` };
+  }
+  return { success: true };
+});
+
 ipcMain.handle('system:set-kiosk', async (_event, enabled: unknown) => {
   if (isServerMode || typeof enabled !== 'boolean') return { success: false, message: 'Permintaan tidak valid.' };
   try {
@@ -1557,6 +1595,8 @@ ipcMain.handle('db:save-setting', (_event, { key, value }) => {
   // Every setting saved from the UI is admin-level (billing rules, cloud credentials).
   const denied = denyUnlessAdmin('mengubah pengaturan');
   if (denied) return denied;
+  // The allowlist must be validated and pushed to booths, so it only goes through server:save-exe-policy
+  if (key === EXE_SETTINGS_KEY) return { success: false, message: 'Ubah allowlist dari halaman Allowlist Aplikasi.' };
   DbService.setSetting(key, value);
   return { success: true };
 });
@@ -1791,7 +1831,8 @@ ipcMain.handle('server:rename-pc', async (_event, { pcId, name }: { pcId: unknow
 
 ipcMain.handle('server:send-to-client', (_event, { pcId, op, payload }: { pcId: string; op: OpCode; payload?: any }) => {
   if (!isServerMode) return false;
-  if (payload?.action === 'set_kiosk') return false; // only through server:set-kiosk, which checks the role
+  // Only through server:set-kiosk and the exe allowlist handlers, which check the role
+  if (payload?.action === 'set_kiosk' || payload?.action === 'set_exe_policy') return false;
   return ServerNetworkBridge.sendToClient(pcId, op, payload);
 });
 
@@ -1816,6 +1857,60 @@ ipcMain.handle('server:set-kiosk', (_event, { pcId, enabled }: { pcId: unknown; 
     targetPc: pcId
   });
   return { success: true };
+});
+
+// Exe allowlist for every booth. Null settings = never saved, the server does not manage booths yet.
+ipcMain.handle('server:get-exe-policy', () => {
+  if (!isServerMode) return null;
+  return parseExeSettings(DbService.getSetting(EXE_SETTINGS_KEY));
+});
+
+ipcMain.handle('server:save-exe-policy', (_event, input: unknown) => {
+  if (!isServerMode) return { success: false, message: 'Hanya di server.' };
+  const denied = denyUnlessAdmin('mengubah allowlist aplikasi');
+  if (denied) return denied;
+  const { defaultMode, allowPaths } = (input && typeof input === 'object' ? input : {}) as { defaultMode?: unknown; allowPaths?: unknown };
+  const shapeError = exePolicyError({ mode: defaultMode, allowPaths });
+  if (shapeError) return { success: false, message: shapeError };
+  const current = parseExeSettings(DbService.getSetting(EXE_SETTINGS_KEY)) ?? DEFAULT_EXE_SETTINGS;
+  const next: ExePolicySettings = { ...current, defaultMode: defaultMode as ExeMode, allowPaths: allowPaths as string[] };
+  DbService.setSetting(EXE_SETTINGS_KEY, JSON.stringify(next));
+  pushExePolicyToAll();
+  BillingEngine.notifyListeners();
+  DbService.addSystemLog({
+    type: 'server',
+    event: 'Exe Allowlist',
+    details: `Allowlist aplikasi: default ${EXE_MODE_LABEL[next.defaultMode]}, ${next.allowPaths.length} path tambahan`,
+    operator: consoleOperator?.name || 'Admin'
+  });
+  return { success: true };
+});
+
+// Per-PC mode, e.g. audit on one booth before the rest. mode null = follow the default again.
+ipcMain.handle('server:set-pc-exe-mode', (_event, input: unknown) => {
+  if (!isServerMode) return { success: false, message: 'Hanya di server.' };
+  const denied = denyUnlessAdmin('mengubah allowlist aplikasi');
+  if (denied) return denied;
+  const { pcName, mode } = (input && typeof input === 'object' ? input : {}) as { pcName?: unknown; mode?: unknown };
+  if (typeof pcName !== 'string' || !pcName.trim() || (mode !== null && !isExeMode(mode))) {
+    return { success: false, message: 'Permintaan tidak valid.' };
+  }
+  const current = parseExeSettings(DbService.getSetting(EXE_SETTINGS_KEY)) ?? DEFAULT_EXE_SETTINGS;
+  const key = pcName.trim().toUpperCase();
+  const overrides = { ...current.overrides };
+  if (mode === null) delete overrides[key]; else overrides[key] = mode;
+  DbService.setSetting(EXE_SETTINGS_KEY, JSON.stringify({ ...current, overrides }));
+  const client = ServerNetworkBridge.getConnectedClients().find(c => (c.pcName || c.pcId).toUpperCase() === key);
+  if (client) pushExePolicy(client.pcId, client.pcName || client.pcId);
+  BillingEngine.notifyListeners();
+  DbService.addSystemLog({
+    type: 'client',
+    event: 'Exe Allowlist',
+    details: `Allowlist aplikasi ${pcName}: ${mode === null ? 'ikut default' : EXE_MODE_LABEL[mode]}`,
+    operator: consoleOperator?.name || 'Admin',
+    targetPc: pcName
+  });
+  return { success: true, message: client ? undefined : `${pcName} tidak tersambung. Setting dikirim begitu PC tersambung.` };
 });
 
 ipcMain.handle('server:broadcast', (_event, { op, payload }: { op: OpCode; payload?: any }) => {

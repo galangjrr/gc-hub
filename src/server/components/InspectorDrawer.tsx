@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Workstation } from '../../shared/types';
 import { ConfirmModal, ConfirmModalProps } from '../../shared/ui/ConfirmModal';
 import { Switch } from '../../shared/ui/primitives';
+import { EXE_MODES, EXE_MODE_LABEL } from '../../shared/exePolicy';
 import { CardStatus, cardStatus, footText, hhmm, rupiah, timeLine } from './PcCard';
 import { Modal, Field, INPUT, BTN_PRIMARY, BTN_SECONDARY } from '../../shared/ui/primitives';
 import { pcNameError } from '../../shared/pcName';
@@ -400,6 +401,23 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
               onChange={(on) => (on ? onAction('kiosk', pc, true) : setConfirm('kiosk_off'))}
               label={`Mode Kiosk ${pc.name}`}
             />
+          </div>
+          <div className="flex items-center gap-3 mt-2 px-2.5 py-2 rounded-sm border border-hairline bg-surface-2">
+            <div className="flex-1 min-w-0">
+              <label htmlFor={`exe-mode-${pc.id}`} className="block text-[13px] font-medium text-text-primary">Allowlist aplikasi</label>
+              <div className={`text-[12px] truncate ${pc.exeMode === 'enforce' ? 'text-primary' : 'text-text-muted'}`}>
+                {pc.exeMode ? `Di PC: ${EXE_MODE_LABEL[pc.exeMode]}` : 'Belum ada laporan dari PC'}
+              </div>
+            </div>
+            <select
+              id={`exe-mode-${pc.id}`}
+              value={pc.exeOverride ?? 'default'}
+              onChange={e => onAction('exe_mode', pc, e.target.value === 'default' ? null : e.target.value)}
+              className={`h-8 px-2 rounded-sm bg-surface-3 border border-hairline text-[12px] text-text-primary ${FOCUS}`}
+            >
+              <option value="default">Ikut default</option>
+              {EXE_MODES.map(m => <option key={m} value={m}>{EXE_MODE_LABEL[m]}</option>)}
+            </select>
           </div>
         </section>
 

@@ -32,23 +32,32 @@ type request struct {
 	PID    uint32       `json:"pid"`
 	Name   string       `json:"name"`
 	// Enabled is a pointer so a set-kiosk without it is rejected instead of read as "off".
-	Enabled *bool `json:"enabled"`
+	Enabled   *bool      `json:"enabled"`
+	ExePolicy *ExePolicy `json:"exePolicy"`
 }
 
 type response struct {
-	ID      string   `json:"id"`
-	OK      bool     `json:"ok"`
-	Error   string   `json:"error,omitempty"`
-	Applied []string `json:"applied,omitempty"`
-	Kiosk   *bool    `json:"kioskEnabled,omitempty"`
+	ID        string     `json:"id"`
+	OK        bool       `json:"ok"`
+	Error     string     `json:"error,omitempty"`
+	Applied   []string   `json:"applied,omitempty"`
+	Kiosk     *bool      `json:"kioskEnabled,omitempty"`
+	ExePolicy *ExePolicy `json:"exePolicy,omitempty"`
 }
 
 type pipeServer struct {
-	mu       sync.Mutex // serialises registry writes across connections
+	mu       sync.Mutex // serialises registry and AppLocker writes across connections
 	listener net.Listener
+	client   string // booth client exe from the service config; its folder stays on the exe allowlist
 }
 
-func newPipeServer() *pipeServer { return &pipeServer{} }
+func newPipeServer(client string) *pipeServer { return &pipeServer{client: client} }
+
+// reconcileExePolicy makes the live AppLocker policy match the stored setting and kiosk switch.
+// Callers hold p.mu.
+func (p *pipeServer) reconcileExePolicy() error {
+	return syncExePolicy(effectiveExePolicy(), p.client)
+}
 
 func (p *pipeServer) serve() {
 	l, err := winio.ListenPipe(pipeName, &winio.PipeConfig{SecurityDescriptor: pipeSDDL})
@@ -62,6 +71,16 @@ func (p *pipeServer) serve() {
 			return // listener closed on service stop
 		}
 		go p.handle(conn)
+	}
+}
+
+// startupReconcile applies the stored exe allowlist once at service start, so a reboot or a
+// reinstall (whose Stop lifted it) comes back to the configured state.
+func (p *pipeServer) startupReconcile() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if err := p.reconcileExePolicy(); err != nil {
+		log.Printf("[exe] gagal menerapkan allowlist: %v", err)
 	}
 }
 
@@ -91,7 +110,8 @@ func (p *pipeServer) dispatch(req request) response {
 	switch req.Cmd {
 	case "ping":
 		on := kioskEnabled()
-		return response{ID: req.ID, OK: true, Kiosk: &on}
+		exe := loadExePolicy()
+		return response{ID: req.ID, OK: true, Kiosk: &on, ExePolicy: &exe}
 	case "apply-policy":
 		p.mu.Lock()
 		cfg := req.Policy
@@ -107,11 +127,31 @@ func (p *pipeServer) dispatch(req request) response {
 		}
 		p.mu.Lock()
 		err := setKioskEnabled(*req.Enabled)
+		if err == nil {
+			err = p.reconcileExePolicy()
+		}
 		p.mu.Unlock()
 		if err != nil {
 			return response{ID: req.ID, OK: false, Error: err.Error()}
 		}
 		return response{ID: req.ID, OK: true, Kiosk: req.Enabled}
+	case "set-exe-policy":
+		if req.ExePolicy == nil {
+			return response{ID: req.ID, OK: false, Error: "field exePolicy wajib diisi"}
+		}
+		if err := validateExePolicy(*req.ExePolicy); err != nil {
+			return response{ID: req.ID, OK: false, Error: err.Error()}
+		}
+		p.mu.Lock()
+		err := saveExePolicy(*req.ExePolicy)
+		if err == nil {
+			err = p.reconcileExePolicy()
+		}
+		p.mu.Unlock()
+		if err != nil {
+			return response{ID: req.ID, OK: false, Error: err.Error()}
+		}
+		return response{ID: req.ID, OK: true, ExePolicy: req.ExePolicy}
 	case "clear-policy":
 		p.mu.Lock()
 		err := clearPolicy()

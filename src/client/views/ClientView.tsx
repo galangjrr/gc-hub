@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, KeyRound, User, RefreshCw, Power, Ticket, WifiOff, Network, Shield, CheckCircle, AlertTriangle, Zap, RotateCcw, Wrench, Check, LogIn, Eye, EyeOff } from 'lucide-react';
+import { X, KeyRound, User, RefreshCw, Power, Ticket, WifiOff, Network, Shield, CheckCircle, AlertTriangle, Zap, RotateCcw, Wrench, Check, LogIn, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { FloatingCapsule, type ClientCatalog, type OverlayLayout, type WidgetToast } from '../components/FloatingCapsule';
 import { AfkUnlockForm } from '../components/AfkUnlockForm';
 import { LockLayout, formatClock } from '../components/LockLayout';
@@ -13,6 +13,8 @@ import { ADMIN_GRANT_TTL_MS } from '../../shared/lanAuth';
 
 import { GCHubDialog, DialogType } from '../components/GCHubDialog';
 import { Switch } from '../../shared/ui/primitives';
+import { ExePolicyEditor } from '../../shared/ui/ExePolicyEditor';
+import { exePolicyError, parseAllowPaths, type ExeMode, type ExePolicy } from '../../shared/exePolicy';
 import { applyTheme, getTheme, type Theme } from '../../shared/theme';
 
 type AdminAction = 'config' | 'tech' | 'exit';
@@ -45,7 +47,12 @@ export const ClientView: React.FC = () => {
   const [machineHostname, setMachineHostname] = useState('');
   const [cfgLanSecret, setCfgLanSecret] = useState('');
   const [theme, setTheme] = useState<Theme>(getTheme);
-  const [configTab, setConfigTab] = useState<'network' | 'provision'>('network');
+  const [configTab, setConfigTab] = useState<'network' | 'provision' | 'apps'>('network');
+  // Allowlist exe di gc-agent: loading, absent = agent belum terpasang atau versi lama
+  const [exeStatus, setExeStatus] = useState<'loading' | 'absent' | 'ready'>('loading');
+  const [exeMode, setExeMode] = useState<ExeMode>('off');
+  const [exeText, setExeText] = useState('');
+  const [exeBusy, setExeBusy] = useState(false);
   const [provisionStatus, setProvisionStatus] = useState<any>(null);
   // Saklar Mode Kiosk dari gc-agent: undefined = sedang dibaca, null = agent belum terpasang
   const [kiosk, setKiosk] = useState<boolean | null | undefined>(undefined);
@@ -472,6 +479,12 @@ export const ClientView: React.FC = () => {
         if (res?.success) setKiosk(params.enabled);
         else console.warn('[KIOSK] Saklar dari kasir gagal:', res?.message);
         await ClientNetworkService.sendTelemetry();
+      } else if (action === 'set_exe_policy' && !exePolicyError(params)) {
+        // Server is the authority once it manages the allowlist; this overwrites any local change
+        const res = await api?.setExePolicy?.(params);
+        if (res?.success) applyExeState(params as ExePolicy);
+        else console.warn('[ALLOWLIST] Setting dari server gagal diterapkan:', res?.message);
+        await ClientNetworkService.sendTelemetry();
       } else if (action === 'restart') {
         notify('PC akan restart', 'Kasir me-restart PC ini.', 'warning');
         setTimeout(async () => {
@@ -716,6 +729,38 @@ export const ClientView: React.FC = () => {
         console.warn('[PROVISION] Error fetching status:', err);
       }
     }
+  };
+
+  // Only touches state setters, so the network listener registered once can call it safely
+  const applyExeState = (policy: ExePolicy) => {
+    setExeMode(policy.mode);
+    setExeText(policy.allowPaths.join('\n'));
+    setExeStatus('ready');
+  };
+
+  const fetchExePolicy = async () => {
+    setExeStatus('loading');
+    const api = (window as any).electronAPI;
+    api?.getKioskEnabled?.().then((on: boolean | undefined) => setKiosk(on ?? null)).catch(() => setKiosk(null));
+    const policy = await api?.getExePolicy?.().catch(() => undefined);
+    if (policy && !exePolicyError(policy)) applyExeState(policy);
+    else setExeStatus('absent');
+  };
+
+  const handleSaveExePolicy = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const { paths, errors } = parseAllowPaths(exeText);
+    if (errors.length) return;
+    setExeBusy(true);
+    const res = await (window as any).electronAPI?.setExePolicy?.({ mode: exeMode, allowPaths: paths })
+      .catch((err: any) => ({ success: false, message: err?.message }));
+    setExeBusy(false);
+    if (!res?.success) {
+      showCustomAlert('Allowlist Gagal Disimpan', res?.message || 'gc-agent tidak menjawab. Coba lagi.', 'error');
+      return;
+    }
+    setExeText(paths.join('\n'));
+    showCustomAlert('Allowlist Disimpan', 'Setting lokal ini berlaku sampai PC tersambung lagi ke server kasir yang mengatur allowlist.', 'success');
   };
 
   const handleToggleKiosk = async (enabled: boolean) => {
@@ -1302,7 +1347,73 @@ export const ClientView: React.FC = () => {
                 <Zap className="w-3.5 h-3.5" />
                 <span>1-Click Setup OS</span>
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfigTab('apps');
+                  fetchExePolicy();
+                }}
+                className={`flex-1 py-2 rounded-t text-xs font-bold flex items-center justify-center space-x-1.5 transition ${
+                  configTab === 'apps'
+                    ? 'bg-surface-3 text-primary border-t border-x border-hairline-strong'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Allowlist</span>
+              </button>
             </div>
+
+            {/* TAB 3: ALLOWLIST APLIKASI — diatur server kalau tersambung, override lokal kalau tidak */}
+            {configTab === 'apps' && (
+              <form onSubmit={handleSaveExePolicy} className="p-4 space-y-3.5 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                {exeStatus === 'loading' && (
+                  <div className="space-y-2" aria-label="Memuat allowlist" aria-busy>
+                    {[0, 1, 2].map(i => <div key={i} className="h-8 rounded-sm bg-surface-3 animate-pulse" />)}
+                  </div>
+                )}
+                {exeStatus === 'absent' && (
+                  <div role="alert" className="p-3 rounded-sm border border-warning/40 bg-warning/10 text-xs text-text-primary space-y-2">
+                    <p>gc-agent belum terpasang atau versinya belum mendukung allowlist. Jalankan 1-Click Setup dengan versi terbaru.</p>
+                    <button type="button" onClick={fetchExePolicy} className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-primary">
+                      <RotateCcw className="w-3.5 h-3.5" aria-hidden /> Coba lagi
+                    </button>
+                  </div>
+                )}
+                {exeStatus === 'ready' && (
+                  <>
+                    <p role="status" className="p-2.5 rounded-sm border border-hairline bg-surface-2 text-[11px] text-text-secondary">
+                      {isConnectedToServer
+                        ? 'PC tersambung ke server kasir. Allowlist diatur dari server di Pengaturan, Allowlist Aplikasi, dan hanya bisa dilihat di sini.'
+                        : 'Server kasir tidak tersambung. Perubahan di sini berlaku lokal sampai PC tersambung lagi ke server yang mengatur allowlist.'}
+                    </p>
+                    {kiosk === false && (
+                      <p className="p-2.5 rounded-sm border border-warning/40 bg-warning/10 text-[11px] text-text-primary">
+                        Mode Kiosk sedang mati, jadi allowlist tidak diterapkan sampai kiosk dinyalakan lagi.
+                      </p>
+                    )}
+                    <ExePolicyEditor
+                      idPrefix="booth-exe"
+                      mode={exeMode}
+                      onModeChange={setExeMode}
+                      pathsText={exeText}
+                      onPathsTextChange={setExeText}
+                      errors={parseAllowPaths(exeText).errors}
+                      disabled={isConnectedToServer || exeBusy}
+                    />
+                    {!isConnectedToServer && (
+                      <button
+                        type="submit"
+                        disabled={exeBusy || parseAllowPaths(exeText).errors.length > 0}
+                        className="w-full py-2 rounded text-xs font-bold bg-primary text-on-primary hover:bg-primary-hover transition disabled:opacity-50"
+                      >
+                        {exeBusy ? 'Menerapkan...' : 'Simpan Allowlist Lokal'}
+                      </button>
+                    )}
+                  </>
+                )}
+              </form>
+            )}
 
             {/* TAB 1: JARINGAN LAN */}
             {configTab === 'network' && (

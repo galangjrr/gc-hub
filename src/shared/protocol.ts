@@ -2,6 +2,7 @@
  * GC-Hub Protocol Contract
  * Mapped exactly from Legacy Engine Specification (State Machine & Transitions)
  */
+import type { ExeMode } from './exePolicy';
 
 // 1. Session States (Dikonfirmasi dari status strings)
 export enum SessionState {
@@ -128,7 +129,7 @@ export interface CouponRedeemResultPayload {
 
 export interface RemoteCommandPayload {
   action: 'shutdown' | 'restart' | 'lock' | 'unlock' | 'set_volume' | 'capture_screen' | 'screen_capture_response' | 'send_message' | 'broadcast_message' | 'client_chat_reply' | 'wake_on_lan' | 'vnc_signal' | 'remote_mouse_move' | 'remote_mouse_click' | 'remote_mouse_scroll' | 'remote_key_event' | 'remote_key_combo' | 'remote_text_input'
-    | 'fetch_processes' | 'kill_process' | 'sync_catalog' | 'rename_pc' | 'set_kiosk'
+    | 'fetch_processes' | 'kill_process' | 'sync_catalog' | 'rename_pc' | 'set_kiosk' | 'set_exe_policy'
     // client -> server
     | 'telemetry' | 'process_list' | 'kill_process_result' | 'rename_pc_result';
   params?: any;
@@ -150,6 +151,9 @@ export interface RenamePcResultPayload {
 export interface SetKioskPayload {
   enabled: boolean;
 }
+
+// set_exe_policy membawa ExePolicy dari src/shared/exePolicy.ts: allowlist exe efektif untuk PC ini.
+export type { ExePolicy as SetExePolicyPayload } from './exePolicy';
 
 export interface ScreenCaptureResponsePayload {
   pcId: string;
@@ -234,6 +238,7 @@ export interface HardwareTelemetryPayload {
   isMuted?: boolean;
   uptimeSeconds?: number;
   kioskEnabled?: boolean;      // saklar kiosk di gc-agent; undefined = agent belum terpasang
+  exeMode?: ExeMode;           // mode allowlist exe yang tersimpan di gc-agent
   timestamp: number;
 }
 

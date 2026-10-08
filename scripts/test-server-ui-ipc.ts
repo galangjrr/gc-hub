@@ -4,6 +4,7 @@ import * as schema from '../src/server/db/schema';
 import { DbService } from '../src/server/db/dbService';
 import { BillingEngine } from '../src/server/engine/billingEngine';
 import { Workstation } from '../src/shared/types';
+import { EXE_SETTINGS_KEY } from '../src/shared/exePolicy';
 
 let passed = 0;
 let failed = 0;
@@ -158,6 +159,17 @@ async function runServerUiIpcIntegrationTests() {
 
     assert(txEventFired === true, 'DbService.onTransactionAdded fired event to UI listeners');
     assert(receivedTx?.price === 15000, 'Received transaction matches inserted data');
+
+    // 5b. gc-agent state and per-PC exe allowlist reach the PC card data
+    console.log('\n--- [5b. KIOSK AND EXE ALLOWLIST ON THE PC CARD] ---');
+    DbService.setSetting(EXE_SETTINGS_KEY, JSON.stringify({ defaultMode: 'off', allowPaths: [], overrides: { [pcTest.toUpperCase()]: 'audit' } }));
+    BillingEngine.setAgentState(pcTest, { kioskEnabled: false, exeMode: 'audit' });
+    const agentPc = BillingEngine.getLiveWorkstations().find(w => w.name === pcTest);
+    assert(agentPc?.exeOverride === 'audit', 'Per-PC exe mode from the server setting shows on the workstation');
+    assert(agentPc?.kioskEnabled === false && agentPc?.exeMode === 'audit', 'Kiosk switch and exe mode reported by the booth show on the workstation');
+    const otherPc = BillingEngine.getLiveWorkstations().find(w => w.name === pcSource);
+    assert(otherPc?.exeOverride === undefined, 'PCs without an override follow the default');
+    DbService.setSetting(EXE_SETTINGS_KEY, '');
 
     // 6. Cleanup Test Data
     console.log('\n--- [6. CLEANUP TEST DATA] ---');

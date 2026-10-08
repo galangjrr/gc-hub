@@ -22,8 +22,9 @@ func (h handler) Execute(_ []string, r <-chan svc.ChangeRequest, s chan<- svc.St
 	const accepted = svc.AcceptStop | svc.AcceptShutdown
 	s <- svc.Status{State: svc.StartPending}
 
-	srv := newPipeServer()
+	srv := newPipeServer(h.client)
 	go srv.serve()
+	go srv.startupReconcile()
 	wd := newWatchdog(h.client)
 	go wd.run()
 	s <- svc.Status{State: svc.Running, Accepts: accepted}
@@ -37,6 +38,7 @@ func (h handler) Execute(_ []string, r <-chan svc.ChangeRequest, s chan<- svc.St
 			// machine unlocked so revert never strands a kiosk policy the user cannot undo.
 			s <- svc.Status{State: svc.StopPending}
 			_ = clearPolicy()
+			_ = syncExePolicy(ExePolicy{Mode: exeModeOff}, "")
 			wd.close()
 			srv.close()
 			return false, 0
@@ -55,7 +57,8 @@ func runService(debug bool, client string) {
 	if debug {
 		log.SetPrefix("[gc-agent] ")
 		go newWatchdog(client).run()
-		srv := newPipeServer()
+		srv := newPipeServer(client)
+		go srv.startupReconcile()
 		srv.serve() // blocks
 		return
 	}
@@ -141,11 +144,16 @@ func uninstallService() error {
 	if err := removeService(m); err != nil {
 		return err
 	}
+	// The Stop above already lifts the exe allowlist; repeat it for a service that was not running,
+	// so revert never leaves a booth where only the old allowlist can start.
+	if err := syncExePolicy(ExePolicy{Mode: exeModeOff}, ""); err != nil {
+		return fmt.Errorf("gagal mencabut AppLocker: %w", err)
+	}
 	if dir, err := installDir(); err == nil {
 		_ = os.RemoveAll(dir)
 	}
 	// Forget the kiosk switch so a later install starts locked again.
-	_ = registry.DeleteKey(registry.LOCAL_MACHINE, kioskKey)
+	_ = registry.DeleteKey(registry.LOCAL_MACHINE, agentKey)
 	return nil
 }
 

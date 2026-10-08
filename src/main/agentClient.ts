@@ -1,4 +1,5 @@
 import net from 'net';
+import type { ExePolicy } from '../shared/exePolicy';
 
 /**
  * Client to the gc-agent LocalSystem service (see agent/). The booth client UI runs as a standard
@@ -12,6 +13,8 @@ import net from 'net';
 // GC_AGENT_PIPE lets tests point the client at a local socket that speaks the same line protocol.
 const PIPE_PATH = process.env.GC_AGENT_PIPE || '\\\\.\\pipe\\gc-hub-agent';
 const TIMEOUT_MS = 3000;
+// Commands that may re-apply the AppLocker allowlist run PowerShell inside the agent.
+const APPLOCKER_TIMEOUT_MS = 30000;
 
 // Matches PolicyConfig in agent/policy_windows.go.
 export interface KioskPolicy {
@@ -34,9 +37,10 @@ interface AgentResponse {
   error?: string;
   applied?: string[];
   kioskEnabled?: boolean;
+  exePolicy?: ExePolicy;
 }
 
-function sendCommand(cmd: string, extra: Record<string, unknown> = {}): Promise<AgentResponse> {
+function sendCommand(cmd: string, extra: Record<string, unknown> = {}, timeoutMs = TIMEOUT_MS): Promise<AgentResponse> {
   return new Promise((resolve, reject) => {
     const id = Math.random().toString(36).slice(2);
     const socket = net.connect(PIPE_PATH);
@@ -51,7 +55,7 @@ function sendCommand(cmd: string, extra: Record<string, unknown> = {}): Promise<
       else resolve(res!);
     };
 
-    socket.setTimeout(TIMEOUT_MS, () => done(new Error('gc-agent tidak merespons')));
+    socket.setTimeout(timeoutMs,() => done(new Error('gc-agent tidak merespons')));
     socket.on('error', (err) => done(err));
     socket.on('connect', () => {
       socket.write(JSON.stringify({ id, cmd, ...extra }) + '\n');
@@ -96,7 +100,23 @@ export const AgentClient = {
 
   /** Switch kiosk mode on or off. Off clears the policy and stops the watchdog until switched back on. */
   setKioskEnabled(enabled: boolean): Promise<AgentResponse> {
-    return sendCommand('set-kiosk', { enabled });
+    return sendCommand('set-kiosk', { enabled }, APPLOCKER_TIMEOUT_MS);
+  },
+
+  /** Read the stored exe allowlist setting. Resolves undefined from an older agent. */
+  async getExePolicy(): Promise<ExePolicy | undefined> {
+    return (await sendCommand('ping')).exePolicy;
+  },
+
+  /** Kiosk switch and exe allowlist in one round trip, for telemetry. */
+  async status(): Promise<{ kioskEnabled?: boolean; exePolicy?: ExePolicy }> {
+    const res = await sendCommand('ping');
+    return { kioskEnabled: res.kioskEnabled, exePolicy: res.exePolicy };
+  },
+
+  /** Store and apply the exe allowlist. The agent validates the paths and lifts it while the kiosk is off. */
+  setExePolicy(policy: ExePolicy): Promise<AgentResponse> {
+    return sendCommand('set-exe-policy', { exePolicy: policy }, APPLOCKER_TIMEOUT_MS);
   },
 
   /**

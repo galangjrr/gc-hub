@@ -8,6 +8,7 @@ import { Workstation, StackedPackageItem } from '../../shared/types';
 import { calcPersonalBill, normalizeAccumulationMinutes, normalizeRoundingStep, roundDownToStep, RoundingStep } from '../../shared/personalBilling';
 import { isPackageOnSale, saleWindowText } from '../../shared/packageRules';
 import { TRANSFER_NOTE } from '../../shared/transactions';
+import { parseExeSettings, EXE_SETTINGS_KEY, type ExeMode } from '../../shared/exePolicy';
 
 export interface SessionEndedEvent {
   pcId: string;
@@ -79,13 +80,14 @@ export class BillingEngine {
     this.notifyListeners();
   }
 
-  // Kiosk switch per PC, as last reported by client telemetry; undefined = no gc-agent report.
-  private static kioskStates = new Map<string, boolean>();
+  // gc-agent state per PC (kiosk switch, exe allowlist mode) as last reported by client telemetry.
+  private static agentStates = new Map<string, { kioskEnabled?: boolean; exeMode?: ExeMode }>();
 
-  public static setKioskState(pcId: string, enabled: boolean | undefined): void {
+  public static setAgentState(pcId: string, state: { kioskEnabled?: boolean; exeMode?: ExeMode }): void {
     const key = pcId.trim().toUpperCase();
-    if (this.kioskStates.get(key) === enabled) return;
-    if (enabled === undefined) this.kioskStates.delete(key); else this.kioskStates.set(key, enabled);
+    const prev = this.agentStates.get(key);
+    if (prev?.kioskEnabled === state.kioskEnabled && prev?.exeMode === state.exeMode) return;
+    this.agentStates.set(key, state);
     this.notifyListeners();
   }
 
@@ -1377,7 +1379,8 @@ export class BillingEngine {
     const workstations = DbService.getWorkstations();
     const connectedClients = ServerNetworkBridge.getConnectedClients();
     const connectedPcIds = new Set(connectedClients.map(c => (c.pcName || c.pcId).toUpperCase()));
-    
+    const exeOverrides = parseExeSettings(DbService.getSetting(EXE_SETTINGS_KEY))?.overrides ?? {};
+
     return workstations.map((ws): Workstation => {
       // Matched by name only: every connecting client registers its own row (upsertWorkstation),
       // and an IP match marked unrelated rows online when they shared a stale or placeholder IP.
@@ -1462,7 +1465,11 @@ export class BillingEngine {
         pendingOrderCount: pendingOrders.length,
         pendingOrderSummary: pendingSummary
       };
-    }).map(w => ({ ...w, kioskEnabled: this.kioskStates.get(w.name.toUpperCase()) }));
+    }).map(w => {
+      const key = w.name.toUpperCase();
+      const agent = this.agentStates.get(key);
+      return { ...w, kioskEnabled: agent?.kioskEnabled, exeMode: agent?.exeMode, exeOverride: exeOverrides[key] };
+    });
   }
 
   public static setPendingOrder(pcId: string, order: any): void {

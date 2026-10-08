@@ -33,6 +33,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setLockdownMode: (locked: boolean) => ipcRenderer.invoke('security:set-lockdown', locked),
   getKioskEnabled: () => ipcRenderer.invoke('system:get-kiosk'),
   setKioskEnabled: (enabled: boolean) => ipcRenderer.invoke('system:set-kiosk', enabled),
+  getExePolicy: () => ipcRenderer.invoke('system:get-exe-policy'),
+  setExePolicy: (policy: { mode: string; allowPaths: string[] }) => ipcRenderer.invoke('system:set-exe-policy', policy),
   cleanupSession: () => ipcRenderer.invoke('client:cleanup-session'),
   getTelemetry: (pcId?: string) => ipcRenderer.invoke('system:get-telemetry', pcId),
   resetAudioVolume: (volume?: number) => ipcRenderer.invoke('system:reset-audio', volume),
@@ -53,6 +55,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   renamePc: (pcId: string, name: string) => ipcRenderer.invoke('server:rename-pc', { pcId, name }),
   broadcastToClients: (op: OpCode, payload?: any) => ipcRenderer.invoke('server:broadcast', { op, payload }),
   setClientKiosk: (pcId: string, enabled: boolean) => ipcRenderer.invoke('server:set-kiosk', { pcId, enabled }),
+  getExePolicySettings: () => ipcRenderer.invoke('server:get-exe-policy'),
+  saveExePolicySettings: (settings: { defaultMode: string; allowPaths: string[] }) => ipcRenderer.invoke('server:save-exe-policy', settings),
+  setPcExeMode: (pcName: string, mode: string | null) => ipcRenderer.invoke('server:set-pc-exe-mode', { pcName, mode }),
 
   // Database APIs
   getWorkstations: () => ipcRenderer.invoke('db:get-workstations'),
