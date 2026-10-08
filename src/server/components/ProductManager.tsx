@@ -6,26 +6,30 @@ import { cn } from '../../shared/ui/utils';
 
 // Kelola Produk F&B (tab POS). Fastest entry: one row, Enter to save, cursor back on the name.
 // Categories are typed by name and created on the fly. Admins add and edit; any logged-in
-// cashier can add stock. The same catalog feeds the booth order menu (sync_catalog).
+// cashier can add stock. The same catalog feeds the booth order menu (sync_catalog), without the
+// cost price, which only admins see here and in the margin report.
 
 interface Product {
   id: number;
   categoryName: string;
   name: string;
   unitPrice: number;
+  costPrice: number;
   stock: number;
   alertStock: number;
   unitName: string;
   enabled: boolean;
 }
 
-type Form = { id?: number; name: string; categoryName: string; unitPrice: string; stock: string; unitName: string; alertStock: string; enabled: boolean };
+type Form = { id?: number; name: string; categoryName: string; unitPrice: string; costPrice: string; stock: string; unitName: string; alertStock: string; enabled: boolean };
 
 const toPayload = (f: Form) => ({
   id: f.id,
   name: f.name,
   categoryName: f.categoryName,
   unitPrice: f.unitPrice.trim() === '' ? NaN : Number(f.unitPrice),
+  // Empty = cost not known yet; the margin report lists those sales apart
+  costPrice: f.costPrice.trim() === '' ? 0 : Number(f.costPrice),
   stock: f.stock.trim() === '' ? 0 : Number(f.stock),
   unitName: f.unitName,
   alertStock: f.alertStock.trim() === '' ? 5 : Number(f.alertStock),
@@ -51,12 +55,15 @@ const EditModal: React.FC<{ initial: Form; categories: string[]; onClose: () => 
     <Modal title={`Ubah ${initial.name}`} onClose={onClose} width={460}>
       <form onSubmit={submit} className="p-4 space-y-3" noValidate>
         <Field label="Nama" htmlFor="edit-name"><input id="edit-name" autoFocus className={INPUT} value={form.name} onChange={e => set({ name: e.target.value })} /></Field>
+        <Field label="Kategori" htmlFor="edit-cat">
+          <input id="edit-cat" list="product-categories" className={INPUT} value={form.categoryName} onChange={e => set({ categoryName: e.target.value })} />
+        </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Kategori" htmlFor="edit-cat">
-            <input id="edit-cat" list="product-categories" className={INPUT} value={form.categoryName} onChange={e => set({ categoryName: e.target.value })} />
-          </Field>
           <Field label="Harga jual (Rp)" htmlFor="edit-price">
             <input id="edit-price" type="number" min={0} step={500} inputMode="numeric" className={cn(INPUT, 'font-mono tabular')} value={form.unitPrice} onChange={e => set({ unitPrice: e.target.value })} />
+          </Field>
+          <Field label="Harga modal (Rp)" htmlFor="edit-cost" hint="Kosongkan kalau belum tahu.">
+            <input id="edit-cost" type="number" min={0} step={100} inputMode="numeric" className={cn(INPUT, 'font-mono tabular')} value={form.costPrice} onChange={e => set({ costPrice: e.target.value })} />
           </Field>
         </div>
         <div className="grid grid-cols-3 gap-3">
@@ -112,7 +119,7 @@ export const ProductManager: React.FC<{ isAdmin: boolean; onToast: (title: strin
   const [products, setProducts] = useState<Product[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-  const [quick, setQuick] = useState<Form>({ name: '', categoryName: '', unitPrice: '', stock: '', unitName: 'pcs', alertStock: '5', enabled: true });
+  const [quick, setQuick] = useState<Form>({ name: '', categoryName: '', unitPrice: '', costPrice: '', stock: '', unitName: 'pcs', alertStock: '5', enabled: true });
   const [quickError, setQuickError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<Form | null>(null);
@@ -146,7 +153,7 @@ export const ProductManager: React.FC<{ isAdmin: boolean; onToast: (title: strin
     if (!res?.success) return setQuickError(res?.message || 'Produk gagal disimpan.');
     setQuickError(null);
     // Keep the category: products are usually entered a category at a time.
-    setQuick(q => ({ ...q, name: '', unitPrice: '', stock: '' }));
+    setQuick(q => ({ ...q, name: '', unitPrice: '', costPrice: '', stock: '' }));
     onToast('Produk Ditambah', res.message);
     await load();
     nameRef.current?.focus();
@@ -163,7 +170,7 @@ export const ProductManager: React.FC<{ isAdmin: boolean; onToast: (title: strin
     <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-6 pb-6 space-y-4">
       {isAdmin ? (
         <form onSubmit={quickAdd} noValidate className="p-3 rounded-md border border-hairline bg-surface-2">
-          <div className="grid grid-cols-[2fr_1.3fr_1fr_0.8fr_auto] gap-2 items-end">
+          <div className="grid grid-cols-[2fr_1.3fr_1fr_1fr_0.8fr_auto] gap-2 items-end">
             <div>
               <label htmlFor="quick-name" className="block mb-1 text-[12px] font-medium text-text-secondary">Nama produk</label>
               <input id="quick-name" ref={nameRef} autoFocus className={INPUT} value={quick.name} onChange={e => setQuick({ ...quick, name: e.target.value })} placeholder="Es Teh Manis" />
@@ -178,6 +185,10 @@ export const ProductManager: React.FC<{ isAdmin: boolean; onToast: (title: strin
               <input id="quick-price" type="number" min={0} step={500} inputMode="numeric" className={cn(INPUT, 'font-mono tabular')} value={quick.unitPrice} onChange={e => setQuick({ ...quick, unitPrice: e.target.value })} placeholder="3000" />
             </div>
             <div>
+              <label htmlFor="quick-cost" className="block mb-1 text-[12px] font-medium text-text-secondary">Modal (Rp)</label>
+              <input id="quick-cost" type="number" min={0} step={100} inputMode="numeric" className={cn(INPUT, 'font-mono tabular')} value={quick.costPrice} onChange={e => setQuick({ ...quick, costPrice: e.target.value })} placeholder="Boleh kosong" />
+            </div>
+            <div>
               <label htmlFor="quick-stock" className="block mb-1 text-[12px] font-medium text-text-secondary">Stok</label>
               <input id="quick-stock" type="number" min={0} inputMode="numeric" className={cn(INPUT, 'font-mono tabular')} value={quick.stock} onChange={e => setQuick({ ...quick, stock: e.target.value })} placeholder="0" />
             </div>
@@ -186,7 +197,7 @@ export const ProductManager: React.FC<{ isAdmin: boolean; onToast: (title: strin
             </button>
           </div>
           <p className={`mt-2 text-[12px] ${quickError ? 'text-error' : 'text-text-muted'}`} role={quickError ? 'alert' : undefined}>
-            {quickError || 'Tekan Enter untuk menyimpan. Kategori baru dibuat otomatis dari namanya.'}
+            {quickError || 'Tekan Enter untuk menyimpan. Kategori baru dibuat otomatis dari namanya. Modal dipakai untuk menghitung laba di Laporan.'}
           </p>
         </form>
       ) : (
@@ -221,6 +232,7 @@ export const ProductManager: React.FC<{ isAdmin: boolean; onToast: (title: strin
               <th className={TH}>Nama</th>
               <th className={TH}>Kategori</th>
               <th className={`${TH} text-right`}>Harga</th>
+              {isAdmin && <th className={`${TH} text-right`}>Modal</th>}
               <th className={`${TH} text-right`}>Stok</th>
               <th className={`${TH} text-right`}>Tambah stok</th>
               {isAdmin && <th className={TH}><span className="sr-only">Aksi</span></th>}
@@ -237,6 +249,11 @@ export const ProductManager: React.FC<{ isAdmin: boolean; onToast: (title: strin
                   </td>
                   <td className={`${TD} text-text-secondary`}>{p.categoryName}</td>
                   <td className={`${TD} text-right font-mono tabular text-text-primary`}>{rupiah(p.unitPrice)}</td>
+                  {isAdmin && (
+                    <td className={`${TD} text-right font-mono tabular ${p.costPrice > 0 ? 'text-text-secondary' : 'text-text-disabled'}`}>
+                      {p.costPrice > 0 ? rupiah(p.costPrice) : <span className="font-sans text-[12px]">Belum diisi</span>}
+                    </td>
+                  )}
                   <td className={`${TD} text-right font-mono tabular ${p.stock <= 0 ? 'text-error' : low ? 'text-warning' : 'text-text-primary'}`}>
                     {p.stock} <span className="font-sans text-[12px] text-text-muted">{p.unitName}</span>
                   </td>
@@ -246,7 +263,7 @@ export const ProductManager: React.FC<{ isAdmin: boolean; onToast: (title: strin
                   {isAdmin && (
                     <td className={`${TD} text-right whitespace-nowrap`}>
                       <button type="button" className={cn(BTN_GHOST, 'text-text-secondary hover:text-text-primary hover:bg-surface-3')}
-                        onClick={() => setEditing({ id: p.id, name: p.name, categoryName: p.categoryName, unitPrice: String(p.unitPrice), stock: String(p.stock), unitName: p.unitName, alertStock: String(p.alertStock), enabled: p.enabled })}>
+                        onClick={() => setEditing({ id: p.id, name: p.name, categoryName: p.categoryName, unitPrice: String(p.unitPrice), costPrice: p.costPrice > 0 ? String(p.costPrice) : '', stock: String(p.stock), unitName: p.unitName, alertStock: String(p.alertStock), enabled: p.enabled })}>
                         Ubah
                       </button>
                       <button type="button" className={cn(BTN_GHOST, 'text-text-secondary hover:text-text-primary hover:bg-surface-3')} onClick={() => toggle(p)}>

@@ -404,7 +404,9 @@ sqlite.exec(`
     employeeId INTEGER NOT NULL DEFAULT 1,
     note TEXT,
     physicalDeleted INTEGER DEFAULT 0,
-    enabled INTEGER NOT NULL DEFAULT 1
+    enabled INTEGER NOT NULL DEFAULT 1,
+    costPrice REAL,
+    soldAt INTEGER
   );
 
   -- 6. Employees & Shifts
@@ -715,6 +717,11 @@ function autoMigrateColumns() {
       { name: 'physicalDeleted', type: 'INTEGER DEFAULT 0' },
       { name: 'needUploading', type: 'INTEGER DEFAULT 1' },
       { name: 'enabled', type: 'INTEGER NOT NULL DEFAULT 1' }
+    ],
+    // Cost per unit and sale time, written when an order is approved (DbService.approveOrder)
+    OrderItemLogs: [
+      { name: 'costPrice', type: 'REAL' },
+      { name: 'soldAt', type: 'INTEGER' }
     ],
     CouponCards: [
       { name: 'name', type: 'TEXT' },

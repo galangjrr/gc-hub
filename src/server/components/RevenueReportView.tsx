@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Download } from 'lucide-react';
-import { ShiftRecord, ShiftAuditSummary, TransactionRecord } from '../../shared/types';
+import { ShiftRecord, ShiftAuditSummary, TransactionRecord, FnbMargin } from '../../shared/types';
 import { classifyTransaction, summarizeCash, formatRp, todayIso, txTimestamp, TX_KIND_LABEL, TX_SOURCE_LABEL, CashSummary } from '../../shared/transactions';
 import { api, INPUT, BTN_SECONDARY, FOCUS, TH, TD, ErrorLine, SkeletonRows, DateRange } from '../../shared/ui/primitives';
 import { useTransactionRange } from './TransactionView';
@@ -13,7 +13,7 @@ import { cn } from '../../shared/ui/utils';
 type Mode = 'pendapatan' | 'shift';
 const ALL_STAFF = '';
 
-export const RevenueReportView: React.FC = () => {
+export const RevenueReportView: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
   const [mode, setMode] = useState<Mode>('pendapatan');
 
   const modeSwitch = (
@@ -34,7 +34,7 @@ export const RevenueReportView: React.FC = () => {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-surface-1">
-      {mode === 'pendapatan' ? <RevenuePanel modeSwitch={modeSwitch} /> : <ShiftPanel modeSwitch={modeSwitch} />}
+      {mode === 'pendapatan' ? <RevenuePanel modeSwitch={modeSwitch} isAdmin={isAdmin} /> : <ShiftPanel modeSwitch={modeSwitch} />}
     </div>
   );
 };
@@ -47,7 +47,7 @@ const Header: React.FC<{ modeSwitch: React.ReactNode; children?: React.ReactNode
   </div>
 );
 
-const RevenuePanel: React.FC<{ modeSwitch: React.ReactNode }> = ({ modeSwitch }) => {
+const RevenuePanel: React.FC<{ modeSwitch: React.ReactNode; isAdmin: boolean }> = ({ modeSwitch, isAdmin }) => {
   const today = todayIso();
   const [from, setFrom] = useState(today);
   const [to, setTo] = useState(today);
@@ -126,6 +126,7 @@ const RevenuePanel: React.FC<{ modeSwitch: React.ReactNode }> = ({ modeSwitch })
             </tbody>
           </table>
         </section>
+        {isAdmin && <FnbMarginSection from={from} to={to} staff={staff} />}
       </>
     );
   }
@@ -186,6 +187,95 @@ const Summary: React.FC<{ s: CashSummary }> = ({ s }) => {
           )}
         </dl>
       </div>
+    </section>
+  );
+};
+
+// Gross margin on F&B from the cost recorded with each sale. Admin only (the server checks too).
+const FnbMarginSection: React.FC<{ from: string; to: string; staff: string }> = ({ from, to, staff }) => {
+  const [margin, setMargin] = useState<FnbMargin | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      const res = await api()?.getFnbMargin?.({ startDate: from, endDate: to, staff });
+      if (!res?.success) throw new Error(res?.message);
+      setMargin(res.margin);
+    } catch (err: any) {
+      setError(err?.message || 'Laba F&B gagal dimuat dari database.');
+    }
+  }, [from, to, staff]);
+
+  useEffect(() => { setMargin(null); load(); }, [load]);
+  useEffect(() => api()?.onTransactionAdded?.(() => load()), [load]);
+
+  const pct = (m: { costedRevenue: number; profit: number }) =>
+    m.costedRevenue > 0 ? `${Math.round((m.profit / m.costedRevenue) * 100)}%` : '-';
+
+  let body: React.ReactNode;
+  if (error) {
+    body = <div className="p-4"><ErrorLine message={error} onRetry={load} /></div>;
+  } else if (margin === null) {
+    body = <div className="p-4"><SkeletonRows rows={3} /></div>;
+  } else if (margin.items.length === 0) {
+    body = <p className="px-4 py-3 text-[13px] text-text-muted">Belum ada penjualan F&amp;B yang tercatat modalnya pada rentang ini. Laba mulai dihitung untuk penjualan setelah harga modal diisi di Kelola Produk.</p>;
+  } else {
+    body = (
+      <>
+        <dl className="flex flex-wrap gap-x-8 gap-y-2 px-4 py-3 border-b border-hairline">
+          {[
+            ['Omzet bermodal', formatRp(margin.costedRevenue), 'text-text-primary'],
+            ['Modal', formatRp(-margin.cost), 'text-text-secondary'],
+            ['Laba kotor', formatRp(margin.profit), 'text-primary'],
+            ['Margin', pct(margin), 'text-text-primary'],
+          ].map(([label, value, tone]) => (
+            <div key={label}>
+              <dt className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted">{label}</dt>
+              <dd className={`mt-0.5 font-mono tabular text-[15px] font-semibold ${tone}`}>{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="border-b border-hairline">
+              <th scope="col" className={`${TH} pl-4`}>Produk</th>
+              <th scope="col" className={`${TH} text-right`}>Terjual</th>
+              <th scope="col" className={`${TH} text-right`}>Omzet</th>
+              <th scope="col" className={`${TH} text-right`}>Modal</th>
+              <th scope="col" className={`${TH} text-right`}>Laba</th>
+              <th scope="col" className={`${TH} text-right pr-4`}>Margin</th>
+            </tr>
+          </thead>
+          <tbody>
+            {margin.items.map(it => (
+              <tr key={it.name} className="border-b border-hairline last:border-b-0">
+                <td className={`${TD} pl-4 text-text-primary`}>
+                  {it.name}
+                  {it.uncostedQty > 0 && <span className="ml-2 text-[12px] text-warning">{it.uncostedQty} tanpa modal</span>}
+                </td>
+                <td className={`${TD} text-right font-mono tabular text-text-secondary`}>{it.qty}</td>
+                <td className={`${TD} text-right font-mono tabular text-text-secondary`}>{formatRp(it.costedRevenue + it.uncostedRevenue)}</td>
+                <td className={`${TD} text-right font-mono tabular text-text-secondary`}>{it.cost ? formatRp(-it.cost) : '-'}</td>
+                <td className={`${TD} text-right font-mono tabular font-semibold ${it.profit < 0 ? 'text-error' : 'text-text-primary'}`}>{it.costedRevenue ? formatRp(it.profit) : '-'}</td>
+                <td className={`${TD} text-right pr-4 font-mono tabular text-text-secondary`}>{pct(it)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {margin.uncostedQty > 0 && (
+          <p className="px-4 py-3 border-t border-hairline text-[12px] text-text-muted">
+            {margin.uncostedQty} item senilai {formatRp(margin.uncostedRevenue)} terjual sebelum harga modalnya diisi, jadi tidak masuk hitungan laba.
+          </p>
+        )}
+      </>
+    );
+  }
+
+  return (
+    <section aria-labelledby="fnb-margin" className="bg-surface-2 border border-hairline rounded-md">
+      <h2 id="fnb-margin" className="px-4 h-11 flex items-center text-[15px] font-semibold text-text-primary border-b border-hairline">Laba F&amp;B</h2>
+      {body}
     </section>
   );
 };

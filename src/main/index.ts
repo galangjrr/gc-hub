@@ -509,7 +509,7 @@ function setupServerNetworkHandlers() {
     ServerNetworkBridge.sendToClient(client.pcId, OpCode.REMOTE_COMMAND, {
       action: 'sync_catalog',
       params: {
-        products: DbService.getProducts(),
+        products: DbService.getBoothProducts(),
         categories: DbService.getCategories()
       }
     });
@@ -1640,7 +1640,7 @@ ipcMain.handle('pos:save-category', (_event, data) => {
   ServerNetworkBridge.broadcast(OpCode.REMOTE_COMMAND, {
     action: 'sync_catalog',
     params: {
-      products: DbService.getProducts(),
+      products: DbService.getBoothProducts(),
       categories: DbService.getCategories()
     }
   });
@@ -1655,7 +1655,7 @@ ipcMain.handle('pos:delete-category', (_event, id) => {
     ServerNetworkBridge.broadcast(OpCode.REMOTE_COMMAND, {
       action: 'sync_catalog',
       params: {
-        products: DbService.getProducts(),
+        products: DbService.getBoothProducts(),
         categories: DbService.getCategories()
       }
     });
@@ -1671,6 +1671,14 @@ ipcMain.handle('pos:get-products', () => {
   return DbService.getProducts();
 });
 
+// Cost and margin are the owner's numbers, so admin only
+ipcMain.handle('pos:get-fnb-margin', (_event, params: { startDate?: unknown; endDate?: unknown; staff?: unknown }) => {
+  const denied = denyUnlessAdmin('melihat laba F&B');
+  if (denied) return denied;
+  const margin = DbService.getFnbMargin(String(params?.startDate ?? ''), String(params?.endDate ?? ''), typeof params?.staff === 'string' ? params.staff : '');
+  return margin ? { success: true, margin } : { success: false, message: 'Rentang tanggal tidak valid.' };
+});
+
 ipcMain.handle('pos:save-product', (_event, data) => {
   const denied = denyUnlessAdmin('mengubah produk');
   if (denied) return denied;
@@ -1679,7 +1687,7 @@ ipcMain.handle('pos:save-product', (_event, data) => {
   ServerNetworkBridge.broadcast(OpCode.REMOTE_COMMAND, {
     action: 'sync_catalog',
     params: {
-      products: DbService.getProducts(),
+      products: DbService.getBoothProducts(),
       categories: DbService.getCategories()
     }
   });
@@ -1693,7 +1701,7 @@ ipcMain.handle('pos:delete-product', (_event, id) => {
   ServerNetworkBridge.broadcast(OpCode.REMOTE_COMMAND, {
     action: 'sync_catalog',
     params: {
-      products: DbService.getProducts(),
+      products: DbService.getBoothProducts(),
       categories: DbService.getCategories()
     }
   });
@@ -1708,7 +1716,7 @@ ipcMain.handle('pos:adjust-stock', (_event, params) => {
     ServerNetworkBridge.broadcast(OpCode.REMOTE_COMMAND, {
       action: 'sync_catalog',
       params: {
-        products: DbService.getProducts(),
+        products: DbService.getBoothProducts(),
         categories: DbService.getCategories()
       }
     });
@@ -1724,7 +1732,7 @@ ipcMain.handle('pos:restock-product', (_event, { productId, addedStock, costPric
     ServerNetworkBridge.broadcast(OpCode.REMOTE_COMMAND, {
       action: 'sync_catalog',
       params: {
-        products: DbService.getProducts(),
+        products: DbService.getBoothProducts(),
         categories: DbService.getCategories()
       }
     });
@@ -1744,7 +1752,7 @@ ipcMain.handle('pos:broadcast-catalog', () => {
   ServerNetworkBridge.broadcast(OpCode.REMOTE_COMMAND, {
     action: 'sync_catalog',
     params: {
-      products: DbService.getProducts(),
+      products: DbService.getBoothProducts(),
       categories: DbService.getCategories()
     }
   });

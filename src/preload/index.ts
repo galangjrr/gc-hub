@@ -193,6 +193,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSetting: (key: string) => ipcRenderer.invoke('db:get-setting', key),
   listBackups: () => ipcRenderer.invoke('db:list-backups'),
   backupNow: () => ipcRenderer.invoke('db:backup-now'),
+  getFnbMargin: (params: { startDate: string; endDate: string; staff?: string }) => ipcRenderer.invoke('pos:get-fnb-margin', params),
   restoreBackup: (name: string) => ipcRenderer.invoke('db:restore-backup', name),
   openBackupFolder: () => ipcRenderer.invoke('db:open-backup-folder')
 });

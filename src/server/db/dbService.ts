@@ -14,6 +14,8 @@ import {
   Workstation,
   WorkstationState,
   ProductItem,
+  FnbMargin,
+  FnbMarginItem,
   ProductCategoryItem,
   InventorySummary,
   StockAdjustmentParams,
@@ -1755,6 +1757,44 @@ export class DbService {
     }));
   }
 
+  /** The catalog the booths get with sync_catalog. Cost prices stay on the server. */
+  public static getBoothProducts(): Omit<ProductItem, 'costPrice'>[] {
+    return this.getProducts().map(({ costPrice: _cost, ...rest }) => rest);
+  }
+
+  /**
+   * F&B margin for approved sales in [fromIso, toIso], optionally for one cashier. Uses the cost and
+   * price recorded on each item when it was sold, so later price edits do not rewrite the past.
+   * Items sold without a known cost are kept out of the margin and reported apart.
+   */
+  public static getFnbMargin(fromIso: string, toIso: string, staff = ''): FnbMargin | null {
+    const start = isoDayStart(fromIso);
+    const endDay = isoDayStart(toIso);
+    if (start === null || endDay === null || start > endDay) return null;
+    const end = endDay + 24 * 60 * 60 * 1000;
+    const rows = sqlite.prepare(`
+      SELECT i.productName AS name,
+             SUM(i.amount) AS qty,
+             SUM(CASE WHEN COALESCE(i.costPrice, 0) > 0 THEN i.amount * i.unitPrice ELSE 0 END) AS costedRevenue,
+             SUM(CASE WHEN COALESCE(i.costPrice, 0) > 0 THEN i.amount * i.costPrice ELSE 0 END) AS cost,
+             SUM(CASE WHEN COALESCE(i.costPrice, 0) > 0 THEN 0 ELSE i.amount * i.unitPrice END) AS uncostedRevenue,
+             SUM(CASE WHEN COALESCE(i.costPrice, 0) > 0 THEN 0 ELSE i.amount END) AS uncostedQty
+      FROM OrderItemLogs i JOIN OrderLogs o ON o.id = i.orderLogId
+      WHERE i.orderStatus = 1 AND i.soldAt >= ? AND i.soldAt < ? AND (? = '' OR o.staff = ?)
+      GROUP BY i.productName
+      ORDER BY SUM(i.amount * i.unitPrice) DESC`).all(start, end, staff, staff) as Omit<FnbMarginItem, 'profit'>[];
+    const items: FnbMarginItem[] = rows.map(r => ({ ...r, profit: r.costedRevenue - r.cost }));
+    const sum = (k: keyof FnbMarginItem) => items.reduce((acc, it) => acc + (it[k] as number), 0);
+    return {
+      items,
+      costedRevenue: sum('costedRevenue'),
+      cost: sum('cost'),
+      profit: sum('profit'),
+      uncostedRevenue: sum('uncostedRevenue'),
+      uncostedQty: sum('uncostedQty'),
+    };
+  }
+
   // Product form from the POS tab (Kelola Produk). Validates what the screen sends; the category is
   // given by name and created when it does not exist yet, so the cashier never manages ids.
   public static saveProductChecked(input: unknown): { success: boolean; message: string; product?: ProductItem } {
@@ -1764,6 +1804,8 @@ export class DbService {
     const price = Number(d.unitPrice);
     const stock = Number(d.stock ?? 0);
     const alertStock = Number(d.alertStock ?? 5);
+    // Left out = keep the stored cost; 0 = not known yet (the margin report lists those apart)
+    const cost = d.costPrice === undefined || d.costPrice === null ? undefined : Number(d.costPrice);
     const id = d.id === undefined || d.id === null ? undefined : Number(d.id);
     const products = this.getProducts();
 
@@ -1772,6 +1814,7 @@ export class DbService {
     if (!Number.isInteger(price) || price < 0 || price > 10_000_000) return fail('Harga harus angka bulat dari 0 sampai 10.000.000.');
     if (!Number.isInteger(stock) || stock < 0 || stock > 100_000) return fail('Stok harus angka bulat 0 atau lebih.');
     if (!Number.isInteger(alertStock) || alertStock < 0 || alertStock > 100_000) return fail('Batas stok menipis harus angka bulat 0 atau lebih.');
+    if (cost !== undefined && (!Number.isInteger(cost) || cost < 0 || cost > 10_000_000)) return fail('Harga modal harus angka bulat dari 0 sampai 10.000.000.');
     if (id !== undefined && !products.some(p => p.id === id)) return fail('Produk tidak ditemukan.');
     if (products.some(p => p.id !== id && p.name.toLowerCase() === name.toLowerCase())) return fail(`Sudah ada produk bernama ${name}.`);
 
@@ -1784,6 +1827,7 @@ export class DbService {
       name,
       categoryId: category.id,
       unitPrice: price,
+      costPrice: cost,
       stock,
       alertStock,
       unitName: String(d.unitName ?? '').trim().slice(0, 20) || 'pcs',
@@ -2251,6 +2295,11 @@ export class DbService {
           db.update(schema.orderItems)
             .set({ stock: newStock })
             .where(eq(schema.orderItems.id, product.id))
+            .run();
+          // The margin report reads what this item cost at the moment it was sold
+          db.update(schema.orderItemLogs)
+            .set({ costPrice: product.costPrice || 0, soldAt: now.getTime() })
+            .where(and(eq(schema.orderItemLogs.orderLogId, params.orderLogId), eq(schema.orderItemLogs.productId, product.id)))
             .run();
 
           if (newStock <= (product.alertStock || 5)) {
