@@ -17,6 +17,7 @@ async function bundle() {
       format: 'cjs',
       external: ['electron', 'better-sqlite3', 'ws'],
       sourcemap: true,
+      loader: { '.woff2': 'dataurl' },
     }),
     // Preload
     build({
