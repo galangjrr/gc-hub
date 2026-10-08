@@ -1182,9 +1182,8 @@ ipcMain.handle('security:set-lockdown', (_event, locked: unknown) => {
 // command (signServerCommand). The agent pipe stays reachable by local users (see agent/pipe_windows.go); this
 // keeps the client UI from being the way around it.
 async function denyUnlessBoothAdminOrServer(action: string, command: string, body: unknown, auth: unknown): Promise<{ success: false; message: string } | null> {
-  const denied = denyUnlessBoothAdmin(action);
-  if (!denied || await verifyServerCommand(getClientLanSecret(), command, body, auth)) return null;
-  return denied;
+  if (await verifyServerCommand(getClientLanSecret(), command, body, auth)) return null;
+  return denyUnlessBoothAdmin(action);
 }
 
 ipcMain.handle('system:get-kiosk', async () => {
