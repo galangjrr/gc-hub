@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { ConfirmModal } from '../../shared/ui/ConfirmModal';
 import { isPackageOnSale } from '../../shared/packageRules';
+import { ErrorLine } from '../../shared/ui/primitives';
 
 const STATUS_FILTERS: Array<{ id: 'all' | 'main' | 'unpaid' | 'locked' | 'idle' | 'off'; label: string; swatch: string; match: (s: CardStatus) => boolean }> = [
   { id: 'all', label: 'Semua', swatch: 'rgb(var(--gc-text-muted))', match: () => true },
@@ -40,6 +41,8 @@ const STATUS_FILTERS: Array<{ id: 'all' | 'main' | 'unpaid' | 'locked' | 'idle' 
 
 interface PCGridProps {
   workstations: Workstation[];
+  dataStatus?: 'loading' | 'error' | 'ready';
+  onRetryLoad?: () => void;
   packages: BillingPackage[]; // admin-configured catalog (Pengaturan > Tarif & Paket)
   selectedPc: Workstation | null;
   unreadChatMap?: Record<string, number>;
@@ -58,6 +61,8 @@ interface PCGridProps {
 
 export const PCGrid: React.FC<PCGridProps> = ({
   workstations,
+  dataStatus = 'ready',
+  onRetryLoad,
   packages,
   selectedPc,
   unreadChatMap = {},
@@ -559,7 +564,15 @@ export const PCGrid: React.FC<PCGridProps> = ({
         )}
       </div>
 
-      {workstations.length === 0 ? (
+      {dataStatus === 'error' && workstations.length === 0 ? (
+        <div className="max-w-xl mx-auto mt-10">
+          <ErrorLine message="Daftar PC gagal dimuat dari database." onRetry={() => onRetryLoad?.()} />
+        </div>
+      ) : dataStatus === 'loading' && workstations.length === 0 ? (
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-2" aria-busy aria-label="Memuat daftar PC">
+          {Array.from({ length: 12 }, (_, i) => <div key={i} className="h-[124px] rounded-md bg-surface-3 animate-pulse" />)}
+        </div>
+      ) : workstations.length === 0 ? (
         <div className="flex flex-col items-center justify-center min-h-[380px] py-12 text-center">
           <Monitor className="w-9 h-9 mb-3 text-text-muted" strokeWidth={1.6} aria-hidden />
           <div className="text-[15px] font-semibold text-text-primary">Belum ada PC terdaftar</div>

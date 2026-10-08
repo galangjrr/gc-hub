@@ -21,7 +21,7 @@ import {
   StockAdjustmentParams,
   OrderRecord,
   OrderItemDetail,
-  SystemLogRecord,
+  SystemLogEntry,
   ShiftRecord,
   ShiftAuditSummary,
   ShiftHandoverParams,
@@ -50,6 +50,8 @@ function shiftSlotAt(date: Date): number {
 function shiftLabel(slot: number): string {
   return slot === 1 ? 'Shift Pagi' : slot === 2 ? 'Shift Sore' : 'Shift Malam';
 }
+
+const LOG_RANGE_LIMIT = 2000;
 
 export class DbService {
   private static isInitialized = false;
@@ -1050,21 +1052,24 @@ export class DbService {
     db.delete(schema.coupons).where(eq(schema.coupons.id, id)).run();
   }
 
-  public static getSystemLogs(limit: number = 100): SystemLogRecord[] {
-    const rows = db.select()
-      .from(schema.systemLogs)
-      .orderBy(desc(schema.systemLogs.id))
-      .limit(limit)
-      .all();
-
-    return rows.map(r => ({
-      id: r.id.toString(),
-      time: new Date(r.eventTime || Date.now()).toLocaleTimeString('id-ID'),
-      type: r.eventType === 1 ? 'client' : 'server',
-      level: r.level === 2 ? 'error' : r.level === 1 ? 'warning' : 'info',
-      action: r.description || '',
-      details: `Event #${r.eventType}`
-    }));
+  /**
+   * SystemLogs between two local dates (YYYY-MM-DD, inclusive), newest first, for the Log screen.
+   * ponytail: capped at LOG_RANGE_LIMIT rows per range; the screen asks for a narrower range beyond
+   * that. Upgrade path is paging in SQL with an eventTime cursor.
+   */
+  public static getSystemLogsRange(fromIso: string, toIso: string): { rows: SystemLogEntry[]; truncated: boolean } | null {
+    const start = isoDayStart(fromIso);
+    const endDay = isoDayStart(toIso);
+    if (start === null || endDay === null || start > endDay) return null;
+    const rows = sqlite.prepare(`
+      SELECT id, eventTime, eventType, description, level FROM SystemLogs
+      WHERE eventTime >= ? AND eventTime < ?
+      ORDER BY eventTime DESC, id DESC LIMIT ?`).all(start, endDay + 24 * 60 * 60 * 1000, LOG_RANGE_LIMIT + 1) as SystemLogEntry[];
+    const truncated = rows.length > LOG_RANGE_LIMIT;
+    return {
+      rows: rows.slice(0, LOG_RANGE_LIMIT).map(r => ({ ...r, level: (r.level === 1 || r.level === 2 ? r.level : 0) as SystemLogEntry['level'] })),
+      truncated
+    };
   }
 
   /** Catat event ke SystemLogs (tampil di menu Log). type 'client' = event dari PC client. */
@@ -1077,10 +1082,6 @@ export class DbService {
       description: `${entry.event}${target}${by}${entry.details ? `: ${entry.details}` : ''}`.slice(0, 500),
       level: entry.level ?? 0
     }).run();
-  }
-
-  public static getLogs(limit: number = 100): SystemLogRecord[] {
-    return this.getSystemLogs(limit);
   }
 
   public static hasAdminAccount(): boolean {

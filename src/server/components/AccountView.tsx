@@ -5,11 +5,13 @@ import {
   ChevronLeft, ChevronRight, User, Ticket, History, CreditCard, Sparkles, Check
 } from 'lucide-react';
 import { ConfirmModal } from '../../shared/ui/ConfirmModal';
-import { INPUT, BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, TH, TD } from '../../shared/ui/primitives';
+import { INPUT, BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, TH, TD, ErrorLine, SkeletonRows } from '../../shared/ui/primitives';
 import { cn } from '../../shared/ui/utils';
 
 interface AccountViewProps {
   members: MemberAccount[];
+  dataStatus?: 'loading' | 'error' | 'ready';
+  onRetryLoad?: () => void;
   coupons: CouponAccount[];
   onOpenAddMember: () => void;
   onOpenEditMember: (member: MemberAccount) => void;
@@ -23,6 +25,8 @@ interface AccountViewProps {
 
 export const AccountView: React.FC<AccountViewProps> = ({
   members,
+  dataStatus = 'ready',
+  onRetryLoad,
   coupons,
   onOpenAddMember,
   onOpenEditMember,
@@ -446,8 +450,11 @@ export const AccountView: React.FC<AccountViewProps> = ({
                 })}
                 {pagedMembers.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-16 text-center text-text-disabled">
-                      Belum ada data member. Tambahkan akun baru dengan tombol Tambah Member di atas.
+                    <td colSpan={6} className={dataStatus === 'ready' ? 'py-16 text-center text-text-disabled' : 'p-4'}>
+                      {dataStatus === 'error' ? <ErrorLine message="Daftar member gagal dimuat dari database." onRetry={() => onRetryLoad?.()} />
+                        : dataStatus === 'loading' ? <SkeletonRows rows={6} />
+                        : members.length > 0 ? 'Tidak ada member yang cocok dengan pencarian.'
+                        : 'Belum ada data member. Tambahkan akun baru dengan tombol Tambah Member di atas.'}
                     </td>
                   </tr>
                 )}
