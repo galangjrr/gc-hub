@@ -1,6 +1,6 @@
 # Checklist GC Hub
 
-Update terakhir: 2026-10-08, branch `fix/provision-revert`.
+Update terakhir: 2026-10-08. Kerjaan bagian 1 ada di branch bertumpuk `fix/offline-stacked-overflow` sampai `fix/ui-data-states`, belum merge ke `main`.
 
 Persentase di bawah adalah estimasi, bukan hitungan otomatis. Centang item begitu selesai dan terverifikasi, lalu sesuaikan angkanya.
 
@@ -8,18 +8,18 @@ Persentase di bawah adalah estimasi, bukan hitungan otomatis. Centang item begit
 
 | Area | Progress |
 |---|---|
-| Server: billing engine | 95% |
-| Server: UI kasir | 95% |
-| Server: POS dan stok | 90% |
+| Server: billing engine | 100% |
+| Server: UI kasir | 100% |
+| Server: POS dan stok | 95% |
 | Client: UI bilik | 95% |
 | Kontrak server dan client | 90% |
 | Penguncian Windows, gc-agent | 85% |
 | Cloud dan booking | 85% |
 | Siap rilis dan jual | 30% |
 | Uji lapangan | 0% |
-| **Total** | **sekitar 70%** |
+| **Total** | **sekitar 73%** |
 
-Fitur sekitar 85%. Siap jual ke warnet lain sekitar 60%.
+Fitur sekitar 88%. Siap jual ke warnet lain sekitar 62%.
 
 ---
 
@@ -39,7 +39,7 @@ Fitur sekitar 85%. Siap jual ke warnet lain sekitar 60%.
 - [x] Booking lunas online masuk log sebagai transfer saat sesi mulai
 - [x] Potong waktu yang terpakai selama LAN putus saat client register ulang
 - [x] Voucher batch dan redeem
-- [ ] Overflow waktu offline memotong paket bertumpuk, sekarang ditandai `ponytail:`
+- [x] Overflow waktu offline memotong paket antrian, durasi pause lama tidak lagi terbawa ke paket berikutnya
 
 ### 1.2 Data dan keuangan
 
@@ -49,8 +49,8 @@ Fitur sekitar 85%. Siap jual ke warnet lain sekitar 60%.
 - [x] Rekap shift hanya transaksi sejak shift buka
 - [x] Koreksi transaksi admin only, jejak di `systemLogs`
 - [x] Backup DB manual dan otomatis
-- [ ] Restore backup dari UI
-- [ ] Cek visual laporan transaksi dan omzet di app asli
+- [x] Restore backup dari UI, dengan backup pengaman otomatis dan restart
+- [x] Cek visual laporan transaksi dan omzet di app asli, tema gelap dan terang
 
 ### 1.3 Akses dan keamanan server
 
@@ -71,8 +71,9 @@ Fitur sekitar 85%. Siap jual ke warnet lain sekitar 60%.
 - [x] Remote: task manager, VNC, screenshot
 - [x] Saklar kiosk per PC di `InspectorDrawer`
 - [x] Editor allowlist exe per PC
-- [ ] Rename PC dari server, butuh action baru di `RemoteCommandPayload`
-- [ ] Empat status UI, yaitu loading skeleton, kosong, error dengan coba lagi, dan sukses, diaudit di semua layar
+- [x] Rename PC dari server lewat `rename_pc`, ikut pindah di cloud dan booking
+- [x] Empat status UI diaudit di semua layar server; menu Log ditulis ulang supaya baca `SystemLogs`, denah PC dan member dapat status loading dan error
+- [x] Inspector ikut data live, bukan potret saat PC diklik
 
 ### 1.5 POS dan stok
 
@@ -80,7 +81,7 @@ Fitur sekitar 85%. Siap jual ke warnet lain sekitar 60%.
 - [x] Approve order dari bilik, tolak stok kurang dan approve dobel
 - [x] Kelola produk, restock, katalog sinkron ke client
 - [x] Bayar di depan saja, tunai atau saldo member
-- [ ] Harga modal per item untuk hitung laba
+- [x] Harga modal per item dan laporan Laba F&B, modal tidak dikirim ke bilik
 - [ ] Midtrans QRIS sebagai metode bayar baru, menunggu approval Midtrans
 
 ---
@@ -158,6 +159,8 @@ Fitur sekitar 85%. Siap jual ke warnet lain sekitar 60%.
 ### 4.3 Merge dan uji
 
 - [ ] Merge `fix/provision-revert` ke `main`
+- [ ] Merge tumpukan bagian 1 berurutan: `fix/offline-stacked-overflow`, `feat/db-restore`, `feat/rename-pc-from-server`, `feat/product-cost`, `fix/ui-data-states`
+- [ ] Uji rename PC dengan bilik asli, termasuk web booking
 - [ ] Merge `feat/kiosk-switch` ke `main`
 - [ ] Merge `feat/exe-allowlist` ke `main`
 - [ ] Uji di PC bilik asli: setup, kunci, maintenance, reboot, revert
