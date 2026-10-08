@@ -73,6 +73,7 @@ import { SupabaseSyncService, cloudPcId, localPcName, type CloudBooking, type Cl
 import { WindowsProvisioner } from './windowsProvisioner';
 import { RemoteInputInjector } from './remoteInputInjector';
 import { OpCode, AuthPayload, ClientRegisterPayload, type SessionUserType, type SessionBillingType, type AdminAuthResult } from '../shared/protocol';
+import { initPcRename, requestPcRename } from '../server/network/pcRename';
 import { TelemetryService } from './telemetry';
 import { startDailyBackup, backupDatabase, listBackups, stageRestore, BACKUP_DIR } from '../server/db';
 
@@ -497,6 +498,8 @@ function registerAuthFailure(pcId: string): void {
 }
 
 function setupServerNetworkHandlers() {
+  initPcRename();
+
   // 0. Client Registration (Auto-register workstation & Resync session if exists)
   ServerNetworkBridge.on(OpCode.CLIENT_REGISTER, (client, packet) => {
     DbService.upsertWorkstation(client.pcId, client.pcName, client.ip, client.mac);
@@ -1609,6 +1612,13 @@ ipcMain.handle('engine:add-workstation-batch', (_event, { prefix, fromNum, toNum
 });
 
 // Network Bridge IPC
+// Admin only; the round trip with the booth lives in src/server/network/pcRename.ts
+ipcMain.handle('server:rename-pc', async (_event, { pcId, name }: { pcId: unknown; name: unknown }) => {
+  const denied = denyUnlessAdmin('mengganti nama PC');
+  if (denied) return denied;
+  return requestPcRename(pcId, name);
+});
+
 ipcMain.handle('server:send-to-client', (_event, { pcId, op, payload }: { pcId: string; op: OpCode; payload?: any }) => {
   if (!isServerMode) return false;
   return ServerNetworkBridge.sendToClient(pcId, op, payload);

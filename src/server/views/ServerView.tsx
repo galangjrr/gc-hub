@@ -939,7 +939,8 @@ export const ServerView: React.FC = () => {
             {/* Right Inspector Drawer (Komputer tab only) */}
             {activeTab === 'komputer' && selectedPc && (
               <InspectorDrawer
-                pc={selectedPc}
+                // The selection is a snapshot from the click; follow the live row (same id across renames)
+                pc={workstations.find(w => w.id === selectedPc.id) ?? selectedPc}
                 isOpen={isInspectorOpen}
                 isPinned={isInspectorPinned}
                 onClose={() => {
@@ -947,6 +948,12 @@ export const ServerView: React.FC = () => {
                 }}
                 onTogglePin={() => setIsInspectorPinned(v => !v)}
                 onAction={handleActionPc}
+                onRenamePc={isAdmin ? async (pc, name) => {
+                  const res = await (window as any).electronAPI?.renamePc?.(pc.name, name);
+                  const result = res ?? { success: false, message: 'Server tidak menjawab.' };
+                  if (result.success) triggerToast('Nama PC Diganti', result.message);
+                  return result;
+                } : undefined}
                 onOpenBuyPackageModal={(pc) => {
                   setPackageTarget(pc);
                   setBuyPackageMode(pc.state === 'idle' || pc.state === 'offline' ? 'start' : 'extension');

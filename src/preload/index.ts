@@ -42,6 +42,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Server Network APIs
   sendToClient: (pcId: string, op: OpCode, payload?: any) => ipcRenderer.invoke('server:send-to-client', { pcId, op, payload }),
+  renamePc: (pcId: string, name: string) => ipcRenderer.invoke('server:rename-pc', { pcId, name }),
   broadcastToClients: (op: OpCode, payload?: any) => ipcRenderer.invoke('server:broadcast', { op, payload }),
 
   // Database APIs

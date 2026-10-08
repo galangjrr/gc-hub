@@ -4,6 +4,7 @@ import * as schema from './schema';
 import { hashPassword, verifyPassword } from './password';
 import { normalizeAccumulationMinutes } from '../../shared/personalBilling';
 import { classifyTransaction, isoDayStart, summarizeCash, txTimestamp } from '../../shared/transactions';
+import { pcNameError } from '../../shared/pcName';
 import {
   BillingPackage,
   PersonalRateConfig,
@@ -140,10 +141,8 @@ export class DbService {
    */
   public static addWorkstation(data: { name: string; ip?: string; mac?: string; groupName?: string; pricePerHour?: number }): { success: boolean; message?: string } {
     const pcId = (data.name || '').trim();
-    // Free-form names like "PC-Mokiya" are allowed; the LAN layer matches names case-insensitively.
-    if (!/^[A-Za-z0-9][A-Za-z0-9 _-]{0,23}$/.test(pcId)) {
-      return { success: false, message: 'Nama PC 1 sampai 24 karakter: huruf, angka, spasi, strip, atau garis bawah.' };
-    }
+    const nameError = pcNameError(pcId);
+    if (nameError) return { success: false, message: nameError };
     // Unknown IP stays empty until the client connects and reports its own (upsertWorkstation).
     const ip = (data.ip || '').trim();
     if (ip && !/^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/.test(ip)) {
@@ -299,6 +298,32 @@ export class DbService {
         .where(eq(schema.workstations.id, existing.id))
         .run();
     }
+  }
+
+  /**
+   * Rename one PC row (pcId and name move together). Matching is case-insensitive like addWorkstation;
+   * renaming to a different case of its own name is allowed, taking another PC's name is not.
+   */
+  public static renameWorkstation(currentId: string, newName: string): { success: boolean; message: string } {
+    const name = (newName || '').trim();
+    const nameError = pcNameError(name);
+    if (nameError) return { success: false, message: nameError };
+    const byKey = (key: string) => db.select().from(schema.workstations)
+      .where(or(eq(sql`lower(${schema.workstations.pcId})`, key), eq(sql`lower(${schema.workstations.name})`, key)))
+      .get();
+    const row = byKey((currentId || '').trim().toLowerCase());
+    if (!row) return { success: false, message: `PC ${currentId} tidak ditemukan.` };
+    const taken = byKey(name.toLowerCase());
+    if (taken && taken.id !== row.id) return { success: false, message: `Nama ${taken.name} sudah dipakai PC lain.` };
+
+    db.update(schema.workstations).set({ pcId: name, name }).where(eq(schema.workstations.id, row.id)).run();
+    db.insert(schema.systemLogs).values({
+      eventTime: Date.now(),
+      eventType: 1,
+      description: `Nama PC ${row.name} diganti jadi ${name}.`,
+      level: 1
+    }).run();
+    return { success: true, message: `Nama PC ${row.name} diganti jadi ${name}.` };
   }
 
   public static deleteWorkstation(identifier: { id?: number; name?: string; pcId?: string } | string | number): void {

@@ -151,6 +151,25 @@ async function run() {
   SupabaseSyncService.markSessionEnded('PC-01');
   await drain();
 
+  // Ganti nama PC: baris cloud dan booking terbuka ikut pindah, push tidak membuat baris baru dulu
+  online = false;
+  SupabaseSyncService.renamePc('PC-03', 'PC VIP');
+  calls.length = 0;
+  await SupabaseSyncService.syncWorkstations([ws('PC VIP', 'idle')]);
+  assert(!calls.some(c => c.table === 'pcs' && c.op === 'insert'), 'selama rename tertunda, push tidak menyisipkan baris baru');
+  online = true;
+  sqlite.exec('UPDATE CloudOutbox SET nextAttemptAt = 0');
+  calls.length = 0;
+  await drain();
+  const pcMove = calls.find(c => c.table === 'pcs' && c.op === 'update');
+  const bookingMove = calls.find(c => c.table === 'bookings' && c.op === 'update');
+  assert(pcMove?.values.id === 'pc-pc vip' && pcMove?.values.name === 'PC VIP' && pcMove?.filters[0][2] === 'pc-03', 'baris pcs pindah id dan nama, foto dan spesifikasi tetap');
+  assert(bookingMove?.values.pc_id === 'pc-pc vip' && bookingMove.filters.some(f => f[0] === 'eq' && f[2] === 'pc-03') && bookingMove.filters.some(f => f[0] === 'in'), 'booking pending dan aktif ikut pindah PC');
+  cloudPcs.push({ id: 'pc-pc vip', name: 'PC VIP', status: 'available', expected_empty_time: null });
+  calls.length = 0;
+  await SupabaseSyncService.syncWorkstations([ws('PC VIP', 'in_use', 600)]);
+  assert(calls.some(c => c.table === 'pcs' && c.op === 'update' && c.filters[0][2] === 'pc-pc vip'), 'setelah rename terkirim, PC baru disinkron normal');
+
   // Error permanen jadi dead letter, antrean lanjut
   permanentFailOnce = 'bookings.update';
   SupabaseSyncService.rejectBooking('bk_dup', 'uji');
