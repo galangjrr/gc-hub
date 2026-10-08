@@ -1,7 +1,7 @@
 // Booth admin gate in main: a server grant only counts for the nonce main issued, once, before it expires;
 // the offline LAN key check locks out after 5 misses; the grant itself expires.
 import { ClientAdminGate } from '../src/main/clientAdminGate';
-import { ADMIN_GRANT_TTL_MS, signAdminGrant, signPacket, verifyAdminGrant } from '../src/shared/lanAuth';
+import { ADMIN_GRANT_TTL_MS, MAX_SKEW_MS, signAdminGrant, signPacket, signServerCommand, verifyAdminGrant, verifyServerCommand } from '../src/shared/lanAuth';
 import { OpCode } from '../src/shared/protocol';
 
 const KEY = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
@@ -64,6 +64,17 @@ async function run() {
   off.checkLanKey(KEY, KEY);
   off.checkLanKey(KEY, 'salah');
   check(off.checkLanKey(KEY, KEY).success, 'kunci benar mereset hitungan salah');
+
+  // Server commands main applies itself (kiosk off, exe allowlist)
+  const body = { mode: 'enforce', allowPaths: ['%PROGRAMFILES%\\Steam\\*'] };
+  const auth = await signServerCommand(KEY, 'set_exe_policy', body, now);
+  check(await verifyServerCommand(KEY, 'set_exe_policy', body, auth, now), 'perintah server valid diterima');
+  check(!(await verifyServerCommand(KEY, 'set_kiosk', body, auth, now)), 'proof untuk perintah lain ditolak');
+  check(!(await verifyServerCommand(KEY, 'set_exe_policy', { ...body, mode: 'off' }, auth, now)), 'isi perintah diubah ditolak');
+  check(!(await verifyServerCommand('kunci-lain', 'set_exe_policy', body, auth, now)), 'proof dari kunci lain ditolak');
+  check(!(await verifyServerCommand(KEY, 'set_exe_policy', body, auth, now + MAX_SKEW_MS + 1)), 'proof basi ditolak');
+  check(!(await verifyServerCommand(KEY, 'set_exe_policy', body, undefined, now)), 'tanpa proof ditolak');
+  check(!(await verifyServerCommand('', 'set_exe_policy', body, auth, now)), 'bilik tanpa kunci tidak menerima proof');
 
   console.log(failed ? `\n${failed} FAIL` : '\nSemua lulus');
   process.exit(failed ? 1 : 0);

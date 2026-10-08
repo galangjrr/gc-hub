@@ -475,13 +475,13 @@ export const ClientView: React.FC = () => {
         setCfgPcId(clean);
         notify('Nama PC diganti', `Kasir mengganti nama PC ini jadi ${clean}.`, 'info');
       } else if (action === 'set_kiosk' && typeof params?.enabled === 'boolean') {
-        const res = await api?.setKioskEnabled?.(params.enabled);
+        const res = await api?.setKioskEnabled?.(params.enabled, params.auth);
         if (res?.success) setKiosk(params.enabled);
         else console.warn('[KIOSK] Saklar dari kasir gagal:', res?.message);
         await ClientNetworkService.sendTelemetry();
       } else if (action === 'set_exe_policy' && !exePolicyError(params)) {
         // Server is the authority once it manages the allowlist; this overwrites any local change
-        const res = await api?.setExePolicy?.(params);
+        const res = await api?.setExePolicy?.({ mode: params.mode, allowPaths: params.allowPaths }, params.auth);
         if (res?.success) applyExeState(params as ExePolicy);
         else console.warn('[ALLOWLIST] Setting dari server gagal diterapkan:', res?.message);
         await ClientNetworkService.sendTelemetry();

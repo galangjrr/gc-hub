@@ -2,7 +2,7 @@
  * GC-Hub Protocol Contract
  * Mapped exactly from Legacy Engine Specification (State Machine & Transitions)
  */
-import type { ExeMode } from './exePolicy';
+import type { ExeMode, ExePolicy } from './exePolicy';
 
 // 1. Session States (Dikonfirmasi dari status strings)
 export enum SessionState {
@@ -147,13 +147,22 @@ export interface RenamePcResultPayload {
   message?: string;
 }
 
+/** Proof on a server command the booth's main process applies itself, see signServerCommand in lanAuth.ts. */
+export interface ServerCommandAuth {
+  ts: number;
+  proof: string;
+}
+
 // Saklar kiosk total: false = policy Windows dilepas dan watchdog berhenti sampai dinyalakan lagi.
 export interface SetKioskPayload {
   enabled: boolean;
+  auth?: ServerCommandAuth; // signServerCommand(lanKey, 'set_kiosk', { enabled })
 }
 
 // set_exe_policy membawa ExePolicy dari src/shared/exePolicy.ts: allowlist exe efektif untuk PC ini.
-export type { ExePolicy as SetExePolicyPayload } from './exePolicy';
+export interface SetExePolicyPayload extends ExePolicy {
+  auth?: ServerCommandAuth; // signServerCommand(lanKey, 'set_exe_policy', { mode, allowPaths })
+}
 
 export interface ScreenCaptureResponsePayload {
   pcId: string;

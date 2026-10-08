@@ -1,4 +1,4 @@
-import type { Packet } from './protocol';
+import type { Packet, ServerCommandAuth } from './protocol';
 
 // HMAC-SHA256 untuk paket WebSocket LAN. Web Crypto tersedia di renderer Electron dan Node 20,
 // jadi server dan client memakai kode yang sama.
@@ -60,6 +60,26 @@ export async function verifyAdminGrant(secret: string, nonce: string, grant: unk
   const sig = typeof grant === 'string' ? fromHex(grant) : null;
   if (!secret || !sig) return false;
   return globalThis.crypto.subtle.verify('HMAC', await getKey(secret), sig, grantInput(nonce));
+}
+
+// Server -> booth commands that the booth's main process applies itself because they loosen the booth
+// (kiosk off, exe allowlist). The renderer only relays them and cannot forge one: 'gc-server-cmd|' never
+// equals a packet's signing input. ponytail: replay inside MAX_SKEW_MS is possible, same as packets.
+function commandInput(action: string, ts: number, body: unknown): Uint8Array<ArrayBuffer> {
+  return new TextEncoder().encode(`gc-server-cmd|${action}|${ts}|${JSON.stringify(body)}`);
+}
+
+export async function signServerCommand(secret: string, action: string, body: unknown, ts = Date.now()): Promise<ServerCommandAuth> {
+  const sig = await globalThis.crypto.subtle.sign('HMAC', await getKey(secret), commandInput(action, ts, body));
+  return { ts, proof: toHex(sig) };
+}
+
+export async function verifyServerCommand(secret: string, action: string, body: unknown, auth: unknown, now = Date.now()): Promise<boolean> {
+  const a = auth as Partial<ServerCommandAuth> | null | undefined;
+  if (!secret || !a || typeof a.ts !== 'number' || Math.abs(now - a.ts) > MAX_SKEW_MS) return false;
+  const sig = typeof a.proof === 'string' ? fromHex(a.proof) : null;
+  if (!sig) return false;
+  return globalThis.crypto.subtle.verify('HMAC', await getKey(secret), sig, commandInput(action, a.ts, body));
 }
 
 export async function verifyPacket(secret: string, packet: Packet, now = Date.now()): Promise<boolean> {

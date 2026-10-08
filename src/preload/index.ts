@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { OpCode, type Packet } from '../shared/protocol';
+import { OpCode, type Packet, type ServerCommandAuth } from '../shared/protocol';
 
 // Expose safe API to renderer
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -32,9 +32,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   killProcess: (pid: number, processName: string, isClientRequest?: boolean) => ipcRenderer.invoke('system:kill-process', { pid, processName, isClientRequest }),
   setLockdownMode: (locked: boolean) => ipcRenderer.invoke('security:set-lockdown', locked),
   getKioskEnabled: () => ipcRenderer.invoke('system:get-kiosk'),
-  setKioskEnabled: (enabled: boolean) => ipcRenderer.invoke('system:set-kiosk', enabled),
+  setKioskEnabled: (enabled: boolean, auth?: ServerCommandAuth) => ipcRenderer.invoke('system:set-kiosk', enabled, auth),
   getExePolicy: () => ipcRenderer.invoke('system:get-exe-policy'),
-  setExePolicy: (policy: { mode: string; allowPaths: string[] }) => ipcRenderer.invoke('system:set-exe-policy', policy),
+  setExePolicy: (policy: { mode: string; allowPaths: string[] }, auth?: ServerCommandAuth) => ipcRenderer.invoke('system:set-exe-policy', policy, auth),
   cleanupSession: () => ipcRenderer.invoke('client:cleanup-session'),
   getTelemetry: (pcId?: string) => ipcRenderer.invoke('system:get-telemetry', pcId),
   resetAudioVolume: (volume?: number) => ipcRenderer.invoke('system:reset-audio', volume),

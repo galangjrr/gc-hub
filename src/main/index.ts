@@ -73,7 +73,7 @@ import { SupabaseSyncService, cloudPcId, localPcName, type CloudBooking, type Cl
 import { WindowsProvisioner } from './windowsProvisioner';
 import { RemoteInputInjector } from './remoteInputInjector';
 import { OpCode, AuthPayload, ClientRegisterPayload, type SessionUserType, type SessionBillingType, type AdminAuthRequest, type AdminAuthResult, type Packet, type SetKioskPayload, type SetExePolicyPayload } from '../shared/protocol';
-import { signAdminGrant, signPacket, verifyPacket } from '../shared/lanAuth';
+import { signAdminGrant, signPacket, verifyPacket, signServerCommand, verifyServerCommand } from '../shared/lanAuth';
 import { initPcRename, requestPcRename } from '../server/network/pcRename';
 import { pcNameError } from '../shared/pcName';
 import { ClientAdminGate } from './clientAdminGate';
@@ -507,15 +507,20 @@ function registerAuthFailure(pcId: string): void {
 
 // Send a booth its effective exe allowlist. A server that never saved the setting does not manage
 // booths, so each keeps what its own admin set locally.
-function pushExePolicy(pcId: string, pcName: string): void {
+// Signed so the booth's main process applies it without a booth admin login.
+async function pushExePolicy(pcId: string, pcName: string): Promise<void> {
   const settings = parseExeSettings(DbService.getSetting(EXE_SETTINGS_KEY));
   if (!settings) return;
-  const payload: SetExePolicyPayload = effectiveExePolicy(settings, pcName);
+  const { mode, allowPaths } = effectiveExePolicy(settings, pcName);
+  const auth = await signServerCommand(DbService.getSetting('lan_secret'), 'set_exe_policy', { mode, allowPaths });
+  const payload: SetExePolicyPayload = { mode, allowPaths, auth };
   ServerNetworkBridge.sendToClient(pcId, OpCode.REMOTE_COMMAND, { action: 'set_exe_policy', params: payload });
 }
 
 function pushExePolicyToAll(): void {
-  for (const c of ServerNetworkBridge.getConnectedClients()) pushExePolicy(c.pcId, c.pcName || c.pcId);
+  for (const c of ServerNetworkBridge.getConnectedClients()) {
+    pushExePolicy(c.pcId, c.pcName || c.pcId).catch(err => console.error('[ALLOWLIST] Gagal mengirim ke', c.pcId, err));
+  }
 }
 
 function setupServerNetworkHandlers() {
@@ -538,7 +543,7 @@ function setupServerNetworkHandlers() {
     });
 
     // Server is the authority on the exe allowlist once configured: overwrite any local booth change
-    pushExePolicy(client.pcId, client.pcName || client.pcId);
+    pushExePolicy(client.pcId, client.pcName || client.pcId).catch(err => console.error('[ALLOWLIST] Gagal mengirim ke', client.pcId, err));
   });
 
   // 0. Admin check for admin-only actions on a booth PC (settings, technician mode, exit). Admin role only,
@@ -1173,8 +1178,15 @@ ipcMain.handle('security:set-lockdown', (_event, locked: unknown) => {
   return true;
 });
 
-// Kiosk switch on this booth. Reaches the renderer only from the admin-verified booth settings or
-// a signed set_kiosk from the server; the agent pipe itself is the real boundary (see agent/pipe_windows.go).
+// Kiosk off and exe allowlist changes loosen a booth, so main wants a booth admin grant or the server's signed
+// command (signServerCommand). The agent pipe stays reachable by local users (see agent/pipe_windows.go); this
+// keeps the client UI from being the way around it.
+async function denyUnlessBoothAdminOrServer(action: string, command: string, body: unknown, auth: unknown): Promise<{ success: false; message: string } | null> {
+  const denied = denyUnlessBoothAdmin(action);
+  if (!denied || await verifyServerCommand(getClientLanSecret(), command, body, auth)) return null;
+  return denied;
+}
+
 ipcMain.handle('system:get-kiosk', async () => {
   if (isServerMode || process.platform !== 'win32') return undefined;
   return AgentClient.getKioskEnabled().catch(() => undefined);
@@ -1185,21 +1197,28 @@ ipcMain.handle('system:get-exe-policy', async () => {
   return AgentClient.getExePolicy().catch(() => undefined);
 });
 
-// Same trust as system:set-kiosk: the admin-verified booth panel or a signed set_exe_policy from the server
-ipcMain.handle('system:set-exe-policy', async (_event, policy: unknown) => {
+ipcMain.handle('system:set-exe-policy', async (_event, policy: unknown, auth?: unknown) => {
   if (isServerMode) return { success: false, message: 'Permintaan tidak valid.' };
   const shapeError = exePolicyError(policy);
   if (shapeError) return { success: false, message: shapeError };
+  const { mode, allowPaths } = policy as ExePolicy;
+  const denied = await denyUnlessBoothAdminOrServer('mengubah allowlist aplikasi', 'set_exe_policy', { mode, allowPaths }, auth);
+  if (denied) return denied;
   try {
-    await AgentClient.setExePolicy(policy as ExePolicy);
+    await AgentClient.setExePolicy({ mode, allowPaths });
   } catch (err: any) {
     return { success: false, message: `gc-agent: ${err?.message || err}` };
   }
   return { success: true };
 });
 
-ipcMain.handle('system:set-kiosk', async (_event, enabled: unknown) => {
+// Switching on only locks the booth more, so it needs no proof
+ipcMain.handle('system:set-kiosk', async (_event, enabled: unknown, auth?: unknown) => {
   if (isServerMode || typeof enabled !== 'boolean') return { success: false, message: 'Permintaan tidak valid.' };
+  if (!enabled) {
+    const denied = await denyUnlessBoothAdminOrServer('mematikan mode kiosk', 'set_kiosk', { enabled }, auth);
+    if (denied) return denied;
+  }
   try {
     await AgentClient.setKioskEnabled(enabled);
   } catch (err: any) {
@@ -1836,7 +1855,7 @@ ipcMain.handle('server:send-to-client', (_event, { pcId, op, payload }: { pcId: 
   return ServerNetworkBridge.sendToClient(pcId, op, payload);
 });
 
-ipcMain.handle('server:set-kiosk', (_event, { pcId, enabled }: { pcId: unknown; enabled: unknown }) => {
+ipcMain.handle('server:set-kiosk', async (_event, { pcId, enabled }: { pcId: unknown; enabled: unknown }) => {
   if (!isServerMode || typeof pcId !== 'string' || !pcId.trim() || typeof enabled !== 'boolean') {
     return { success: false, message: 'Permintaan tidak valid.' };
   }
@@ -1845,7 +1864,7 @@ ipcMain.handle('server:set-kiosk', (_event, { pcId, enabled }: { pcId: unknown; 
     const denied = denyUnlessAdmin('mematikan mode kiosk');
     if (denied) return denied;
   }
-  const payload: SetKioskPayload = { enabled };
+  const payload: SetKioskPayload = { enabled, auth: await signServerCommand(DbService.getSetting('lan_secret'), 'set_kiosk', { enabled }) };
   if (!ServerNetworkBridge.sendToClient(pcId, OpCode.REMOTE_COMMAND, { action: 'set_kiosk', params: payload })) {
     return { success: false, message: `${pcId} tidak tersambung.` };
   }
@@ -1901,7 +1920,7 @@ ipcMain.handle('server:set-pc-exe-mode', (_event, input: unknown) => {
   if (mode === null) delete overrides[key]; else overrides[key] = mode;
   DbService.setSetting(EXE_SETTINGS_KEY, JSON.stringify({ ...current, overrides }));
   const client = ServerNetworkBridge.getConnectedClients().find(c => (c.pcName || c.pcId).toUpperCase() === key);
-  if (client) pushExePolicy(client.pcId, client.pcName || client.pcId);
+  if (client) pushExePolicy(client.pcId, client.pcName || client.pcId).catch(err => console.error('[ALLOWLIST] Gagal mengirim ke', client.pcId, err));
   BillingEngine.notifyListeners();
   DbService.addSystemLog({
     type: 'client',
