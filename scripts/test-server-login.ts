@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '../src/server/db/index';
 import * as schema from '../src/server/db/schema';
 import { DbService } from '../src/server/db/dbService';
+import { todayIso } from '../src/shared/transactions';
 
 let passed = 0;
 let failed = 0;
@@ -100,11 +101,11 @@ async function runServerLoginTests() {
     const exitRes = DbService.logoutAndExitServer('Operator Kasir');
     assert(exitRes.success === true, 'Logout and exit server records session closure');
 
-    const logs = DbService.getLogs(10);
-    const lockLog = logs.find(l => l.action.includes('dikunci'));
-    const exitLog = logs.find(l => l.action.includes('logout'));
-    assert(lockLog !== undefined, 'Console lock event recorded in SQLite system logs', lockLog?.action);
-    assert(exitLog !== undefined, 'Logout exit event recorded in SQLite system logs', exitLog?.action);
+    const logs = DbService.getSystemLogsRange(todayIso(), todayIso())!.rows;
+    const lockLog = logs.find(l => l.description.includes('dikunci'));
+    const exitLog = logs.find(l => l.description.includes('logout'));
+    assert(lockLog !== undefined, 'Console lock event recorded in SQLite system logs', lockLog?.description);
+    assert(exitLog !== undefined, 'Logout exit event recorded in SQLite system logs', exitLog?.description);
 
     // 4. Employee Management & Scraped Legacy Shift Delete Law
     console.log('\n--- [4. EMPLOYEE CRUD & SCRAPED DELETION LAW] ---');

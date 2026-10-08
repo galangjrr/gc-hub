@@ -2,6 +2,7 @@ import { app } from 'electron';
 import { db } from '../src/server/db/index';
 import * as schema from '../src/server/db/schema';
 import { DbService } from '../src/server/db/dbService';
+import { todayIso } from '../src/shared/transactions';
 import { BillingEngine } from '../src/server/engine/billingEngine';
 import { eq } from 'drizzle-orm';
 
@@ -252,9 +253,9 @@ async function runShiftAndVoucherIntegrationTests() {
     const lastClosedShift = shiftHistory.find(s => s.id === activeShiftBeforeClose.id);
     assert(lastClosedShift !== undefined, `Closed shift #${activeShiftBeforeClose.id} found in history with status: ${lastClosedShift?.statusText}`);
 
-    const systemLogs = DbService.getLogs(50);
-    const handoverLog = systemLogs.find(l => l.action.toLowerCase().includes('handover'));
-    assert(handoverLog !== undefined, `Handover audit logged in SystemLogs: "${handoverLog?.action}"`);
+    const systemLogs = DbService.getSystemLogsRange(todayIso(), todayIso())!.rows;
+    const handoverLog = systemLogs.find(l => l.description.toLowerCase().includes('handover'));
+    assert(handoverLog !== undefined, `Handover audit logged in SystemLogs: "${handoverLog?.description}"`);
 
     // 9. Transaction range query, correction and delete
     console.log('\n--- [9. TRANSACTION RANGE, CORRECTION & DELETE] ---');
@@ -277,7 +278,7 @@ async function runShiftAndVoucherIntegrationTests() {
 
     const deleted = DbService.deleteTransaction(target.id, 'Admin');
     assert(deleted.success && !DbService.getTransactions(500, iso, iso).some(r => r.id === target.id), 'Delete removes the row');
-    assert(DbService.getLogs(50).some(l => l.action.includes(`menghapus transaksi #${target.id}`)), 'Delete is kept in the system log');
+    assert(DbService.getSystemLogsRange(todayIso(), todayIso())!.rows.some(l => l.description.includes(`menghapus transaksi #${target.id}`)), 'Delete is kept in the system log');
 
   } catch (error: any) {
     console.error('FATAL ERROR DURING TEST EXECUTION:', error);
