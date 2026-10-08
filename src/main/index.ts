@@ -78,6 +78,9 @@ import { initPcRename, requestPcRename } from '../server/network/pcRename';
 import { pcNameError } from '../shared/pcName';
 import { ClientAdminGate } from './clientAdminGate';
 import { TelemetryService } from './telemetry';
+// Inlined as data URLs by the electron build: the notification window is a data: page and cannot load app files
+import geistFont from '../shared/assets/fonts/Geist.woff2';
+import geistMonoFont from '../shared/assets/fonts/GeistMono.woff2';
 import { startDailyBackup, backupDatabase, listBackups, stageRestore, BACKUP_DIR } from '../server/db';
 
 let mainWindow: BrowserWindow | null = null;
@@ -1215,6 +1218,8 @@ ipcMain.handle('system:open-admin-tool', async (_event, toolName: 'sound' | 'set
 // ==================== CUSTOM OS-LEVEL DESKTOP NOTIFICATION WINDOW ====================
 let notificationWindow: BrowserWindow | null = null;
 let notifTimer: NodeJS.Timeout | null = null;
+// Latest toast; the first one is shown when the page finishes loading, so a second toast sent meanwhile is not lost
+let notifPayload: { appName: string; title: string; body: string; subMessage?: string } | null = null;
 
 function getNotificationHtml(): string {
   return `<!DOCTYPE html>
@@ -1223,11 +1228,13 @@ function getNotificationHtml(): string {
 <meta charset="utf-8">
 <style>
   /* DESIGN.md dark tokens; a data: URL window cannot load index.css, so the values are copied here */
+  @font-face { font-family: 'Geist'; src: url('${geistFont}') format('woff2'); font-weight: 100 900; }
+  @font-face { font-family: 'Geist Mono'; src: url('${geistMonoFont}') format('woff2'); font-weight: 100 900; }
   :root {
     --surface-1: #0F1719; --surface-2: #152023; --surface-3: #1B2A2E;
     --hairline: #24363A; --hairline-strong: #31474C;
     --text-primary: #E3ECEA; --text-secondary: #B4C3C1; --text-muted: #86999A;
-    --primary: #4FB3A3; --shadow: 11 18 20;
+    --primary: #4FB3A3; --shadow: 5 10 11;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
   body {
@@ -1247,7 +1254,7 @@ function getNotificationHtml(): string {
     border: 1px solid var(--hairline);
     border-left: 4px solid var(--primary);
     border-radius: 6px;
-    box-shadow: 0 12px 32px rgb(var(--shadow) / 0.7);
+    box-shadow: 0 12px 32px rgb(var(--shadow) / 0.35);
     overflow: hidden;
     cursor: pointer;
     animation: slideIn 0.2s ease-out forwards;
@@ -1274,15 +1281,18 @@ function getNotificationHtml(): string {
     letter-spacing: 0.06em;
   }
   .close-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
     background: transparent;
     border: none;
     color: var(--text-muted);
-    font-size: 13px;
     cursor: pointer;
-    padding: 2px 6px;
     border-radius: 4px;
-    line-height: 1;
   }
+  .close-btn svg { width: 14px; height: 14px; }
   .close-btn:hover { color: var(--text-primary); background: var(--surface-3); }
   .body { padding: 10px 12px; }
   .title {
@@ -1311,7 +1321,9 @@ function getNotificationHtml(): string {
   <div class="toast" id="toast" onclick="onToastClick()">
     <div class="header">
       <span class="app-label" id="appLabel">GC Hub Server</span>
-      <button class="close-btn" onclick="event.stopPropagation(); onCloseClick();">✕</button>
+      <button class="close-btn" aria-label="Tutup notifikasi" onclick="event.stopPropagation(); onCloseClick();">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
     </div>
     <div class="body">
       <div class="title" id="toastTitle"></div>
@@ -1388,17 +1400,15 @@ function showCustomDesktopNotification(title: string, body: string, subMessage?:
       notificationWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(getNotificationHtml())}`);
 
       notificationWindow.webContents.on('did-finish-load', () => {
-        const appName = isServerMode ? 'GC Hub Server' : 'GC Hub Client';
-        const jsCode = `update(${JSON.stringify({ appName, title, body, subMessage })})`;
-        notificationWindow?.webContents.executeJavaScript(jsCode).catch(() => {});
+        notificationWindow?.webContents.executeJavaScript(`update(${JSON.stringify(notifPayload)})`).catch(() => {});
         notificationWindow?.setBounds({ x, y, width, height });
         notificationWindow?.showInactive();
       });
-    } else {
+    }
+    notifPayload = { appName: isServerMode ? 'GC Hub Server' : 'GC Hub Client', title, body, subMessage };
+    if (!notificationWindow.webContents.isLoading()) {
       notificationWindow.setBounds({ x, y, width, height });
-      const appName = isServerMode ? 'GC Hub Server' : 'GC Hub Client';
-      const jsCode = `update(${JSON.stringify({ appName, title, body, subMessage })})`;
-      notificationWindow.webContents.executeJavaScript(jsCode).catch(() => {});
+      notificationWindow.webContents.executeJavaScript(`update(${JSON.stringify(notifPayload)})`).catch(() => {});
       notificationWindow.showInactive();
     }
 
@@ -1418,7 +1428,9 @@ ipcMain.handle('system:show-notification', (_event, { title, body, subMessage }:
   return true;
 });
 
+// Clicking a toast opens the cashier window. On a booth it would pull focus out of a fullscreen game, so the toast only closes.
 ipcMain.handle('window:focus-main', () => {
+  if (!isServerMode) return false;
   if (mainWindow && !mainWindow.isDestroyed()) {
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.show();
