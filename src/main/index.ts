@@ -1395,6 +1395,12 @@ ipcMain.handle('db:save-setting', (_event, { key, value }) => {
   return { success: true };
 });
 
+ipcMain.handle('db:get-system-logs', (_event, params: { startDate?: unknown; endDate?: unknown }) => {
+  if (!consoleOperator) return { success: false, message: 'Login kasir dulu untuk melihat log.' };
+  const res = DbService.getSystemLogsRange(String(params?.startDate ?? ''), String(params?.endDate ?? ''));
+  return res ? { success: true, ...res } : { success: false, message: 'Rentang tanggal tidak valid.' };
+});
+
 ipcMain.handle('db:list-backups', () => ({ dir: BACKUP_DIR, files: listBackups() }));
 
 ipcMain.handle('db:backup-now', async () => {

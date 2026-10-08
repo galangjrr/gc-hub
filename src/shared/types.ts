@@ -192,19 +192,13 @@ export interface TransactionRecord {
   note: string;
 }
 
-export interface SystemLogRecord {
-  id?: string | number;
-  pcName?: string;
-  username?: string;
-  date?: string;
-  time?: string;
-  status?: 'Tersedia' | 'Online' | 'Offline' | 'Peringatan' | string;
-  usedDuration?: string;
-  note?: string;
-  type?: string;
-  level?: string;
-  action?: string;
-  details?: string;
+/** One row of SystemLogs as the Log screen shows it. */
+export interface SystemLogEntry {
+  id: number;
+  eventTime: number; // epoch ms
+  eventType: number;
+  description: string;
+  level: 0 | 1 | 2;  // info, important, error
 }
 
 export interface FbOrderItem {

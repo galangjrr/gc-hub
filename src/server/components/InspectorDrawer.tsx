@@ -68,7 +68,7 @@ const RenamePcModal: React.FC<{ pc: Workstation; onRename: (name: string) => Pro
 
   return (
     <Modal title={`Ganti Nama ${pc.name}`} onClose={onClose}>
-      <form onSubmit={submit} className="space-y-4">
+      <form onSubmit={submit} className="p-4 space-y-4">
         <Field label="Nama baru" htmlFor="rename-pc" hint="Dipakai di denah, laporan, dan web booking. PC harus menyala dan sedang kosong." error={error || undefined}>
           <input id="rename-pc" className={INPUT} value={name} maxLength={24} autoFocus disabled={saving}
             onChange={e => { setName(e.target.value); setError(null); }} aria-invalid={!!error} />

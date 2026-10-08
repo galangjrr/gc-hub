@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Workstation, MemberAccount, CouponAccount, TransactionRecord, SystemLogRecord, BillingPackage, PersonalRateConfig } from '../../shared/types';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Workstation, MemberAccount, CouponAccount, TransactionRecord, BillingPackage, PersonalRateConfig } from '../../shared/types';
 import { AppTopBar } from '../components/AppTopBar';
 import { AppNavRail, MainTabType } from '../components/AppNavRail';
 import { InspectorDrawer } from '../components/InspectorDrawer';
@@ -37,8 +37,6 @@ import { OpCode, RemoteProcessItem } from '../../shared/protocol';
 const initialWorkstations: Workstation[] = [];
 const initialMembers: MemberAccount[] = [];
 const initialCoupons: CouponAccount[] = [];
-const initialClientLogs: SystemLogRecord[] = [];
-const initialServerLogs: SystemLogRecord[] = [];
 
 const initialPackages: BillingPackage[] = [
   // 1. Paket Jam Reguler
@@ -90,8 +88,6 @@ export const ServerView: React.FC = () => {
   const [selectedPc, setSelectedPc] = useState<Workstation | null>(initialWorkstations[0]);
   const [members, setMembers] = useState<MemberAccount[]>(initialMembers);
   const [coupons, setCoupons] = useState<CouponAccount[]>(initialCoupons);
-  const [clientLogs, setClientLogs] = useState<SystemLogRecord[]>(initialClientLogs);
-  const [serverLogs] = useState<SystemLogRecord[]>(initialServerLogs);
   const [billingPackages, setBillingPackages] = useState<BillingPackage[]>(initialPackages);
   const [personalRates, setPersonalRates] = useState<PersonalRateConfig[]>(initialPersonalRates);
   const [activePersonalRateId, setActivePersonalRateId] = useState<string>('prate-standard');
@@ -254,53 +250,59 @@ export const ServerView: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isServerLocked, isLoginModalOpen]);
 
+  // Workstations and members feed the grid and the member list; their state shows there
+  const [coreData, setCoreData] = useState<'loading' | 'error' | 'ready'>('loading');
+  const loadDbData = useCallback(async () => {
+    const api = (window as any).electronAPI;
+    if (!api) return setCoreData('ready'); // browser preview: nothing to load
+
+    setCoreData('loading');
+    try {
+      if (api.getWorkstations) {
+        const dbWorkstations = await api.getWorkstations();
+        setWorkstations(Array.isArray(dbWorkstations) ? dbWorkstations : []);
+        if (Array.isArray(dbWorkstations) && dbWorkstations.length > 0) {
+          setSelectedPc(dbWorkstations[0]);
+        } else {
+          setSelectedPc(null);
+        }
+      }
+      if (api.getMembers) {
+        const dbMembers = await api.getMembers();
+        setMembers(Array.isArray(dbMembers) ? dbMembers : []);
+      }
+      if (api.getPackages) {
+        const dbPkgs = await api.getPackages();
+        if (Array.isArray(dbPkgs) && dbPkgs.length > 0) {
+          setBillingPackages(dbPkgs);
+        }
+      }
+      if (api.getRates) {
+        const dbRates = await api.getRates();
+        if (Array.isArray(dbRates) && dbRates.length > 0) {
+          setPersonalRates(dbRates);
+        }
+      }
+      if (api.getSetting) {
+        const savedActiveRate = await api.getSetting('activePersonalRateId');
+        if (savedActiveRate) {
+          setActivePersonalRateId(savedActiveRate);
+        }
+      }
+      if (api.getCoupons) {
+        const dbCoupons = await api.getCoupons();
+        setCoupons(Array.isArray(dbCoupons) ? dbCoupons : []);
+      }
+      setCoreData('ready');
+    } catch (err) {
+      console.warn('[SERVER VIEW] Failed to load SQLite initial data:', err);
+      setCoreData('error');
+    }
+  }, []);
+
+
   // Load Database from SQLite & Subscribe to Authoritative Billing Engine
   useEffect(() => {
-    const loadDbData = async () => {
-      const api = (window as any).electronAPI;
-      if (!api) return;
-
-      try {
-        if (api.getWorkstations) {
-          const dbWorkstations = await api.getWorkstations();
-          setWorkstations(Array.isArray(dbWorkstations) ? dbWorkstations : []);
-          if (Array.isArray(dbWorkstations) && dbWorkstations.length > 0) {
-            setSelectedPc(dbWorkstations[0]);
-          } else {
-            setSelectedPc(null);
-          }
-        }
-        if (api.getMembers) {
-          const dbMembers = await api.getMembers();
-          setMembers(Array.isArray(dbMembers) ? dbMembers : []);
-        }
-        if (api.getPackages) {
-          const dbPkgs = await api.getPackages();
-          if (Array.isArray(dbPkgs) && dbPkgs.length > 0) {
-            setBillingPackages(dbPkgs);
-          }
-        }
-        if (api.getRates) {
-          const dbRates = await api.getRates();
-          if (Array.isArray(dbRates) && dbRates.length > 0) {
-            setPersonalRates(dbRates);
-          }
-        }
-        if (api.getSetting) {
-          const savedActiveRate = await api.getSetting('activePersonalRateId');
-          if (savedActiveRate) {
-            setActivePersonalRateId(savedActiveRate);
-          }
-        }
-        if (api.getCoupons) {
-          const dbCoupons = await api.getCoupons();
-          setCoupons(Array.isArray(dbCoupons) ? dbCoupons : []);
-        }
-      } catch (err) {
-        console.warn('[SERVER VIEW] Failed to load SQLite initial data, using local state:', err);
-      }
-    };
-
     loadDbData();
 
     // Subscribe to live authoritative tick engine & transactions
@@ -763,6 +765,8 @@ export const ServerView: React.FC = () => {
               {activeTab === 'komputer' && (
                 <PCGrid
                   workstations={workstations}
+                  dataStatus={coreData}
+                  onRetryLoad={loadDbData}
                   packages={billingPackages || []}
                   selectedPc={selectedPc}
                   unreadChatMap={unreadChatMap}
@@ -802,6 +806,8 @@ export const ServerView: React.FC = () => {
               {activeTab === 'account' && (
                 <AccountView
                   members={members}
+                  dataStatus={coreData}
+                  onRetryLoad={loadDbData}
                   coupons={coupons}
                   onOpenAddMember={() => {
                     setEditingMember(null);
@@ -884,10 +890,7 @@ export const ServerView: React.FC = () => {
               )}
 
               {activeTab === 'log' && (
-                <LogView
-                  clientLogs={clientLogs}
-                  serverLogs={serverLogs}
-                />
+                <LogView />
               )}
 
               {activeTab === 'pengaturan' && (
@@ -1142,19 +1145,6 @@ export const ServerView: React.FC = () => {
               [pc.name]: [...list, { sender: 'Operator', time: timeStr, text: msg, isClient: false }]
             };
           });
-          setClientLogs(prev => [
-            {
-              id: Date.now(),
-              pcName: pc.name,
-              username: pc.username,
-              date: new Date().toLocaleDateString('id-ID'),
-              time: timeStr,
-              status: 'Online',
-              usedDuration: '0m',
-              note: `Pesan Terkirim: "${msg}"`
-            },
-            ...prev
-          ]);
           return true;
         }}
       />
