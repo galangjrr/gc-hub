@@ -1,6 +1,6 @@
 # Checklist GC Hub
 
-Update terakhir: 2026-10-08. Kerjaan bagian 1 ada di branch bertumpuk `fix/offline-stacked-overflow` sampai `fix/ui-data-states`, bagian 2 lanjut di atasnya: `fix/client-ipc-admin-gate` lalu `fix/client-notification-window`. Semua belum merge ke `main`.
+Update terakhir: 2026-10-08. Semua branch bagian 1, 2, kiosk, dan allowlist sudah digabung ke `main` lokal lewat `integrate/section-4`, belum di-push.
 
 Persentase di bawah adalah estimasi, bukan hitungan otomatis. Centang item begitu selesai dan terverifikasi, lalu sesuaikan angkanya.
 
@@ -13,7 +13,7 @@ Persentase di bawah adalah estimasi, bukan hitungan otomatis. Centang item begit
 | Server: POS dan stok | 95% |
 | Client: UI bilik | 100% |
 | Kontrak server dan client | 90% |
-| Penguncian Windows, gc-agent | 85% |
+| Penguncian Windows, gc-agent | 90% |
 | Cloud dan booking | 85% |
 | Siap rilis dan jual | 30% |
 | Uji lapangan | 0% |
@@ -144,6 +144,7 @@ Fitur sekitar 88%. Siap jual ke warnet lain sekitar 62%.
 - [x] Saklar kiosk atau maintenance, tahan reboot, gagal tertutup
 - [x] Service stop selalu membersihkan policy
 - [x] Allowlist exe lewat AppLocker, admin selalu bebas
+- [x] Kiosk off dan perubahan allowlist di bilik wajib izin admin bilik atau perintah server bertanda tangan, dicek di main
 - [x] Test Go agent lulus
 
 ### 4.2 1 Click Setup dan Revert
@@ -159,12 +160,13 @@ Fitur sekitar 88%. Siap jual ke warnet lain sekitar 62%.
 
 ### 4.3 Merge dan uji
 
-- [ ] Merge `fix/provision-revert` ke `main`
-- [ ] Merge tumpukan bagian 1 dan 2 berurutan: `fix/offline-stacked-overflow`, `feat/db-restore`, `feat/rename-pc-from-server`, `feat/product-cost`, `fix/ui-data-states`, `fix/client-ipc-admin-gate`, `fix/client-notification-window`
-- [ ] Uji verifikasi admin di bilik asli: online lewat akun admin, offline lewat Kunci LAN, simpan pengaturan, Mode Teknisi, tutup app
-- [ ] Uji rename PC dengan bilik asli, termasuk web booking
-- [ ] Merge `feat/kiosk-switch` ke `main`
-- [ ] Merge `feat/exe-allowlist` ke `main`
+- [x] Merge `fix/provision-revert` ke `main`
+- [x] Merge tumpukan bagian 1 dan 2 berurutan: `fix/offline-stacked-overflow`, `feat/db-restore`, `feat/rename-pc-from-server`, `feat/product-cost`, `fix/ui-data-states`, `fix/client-ipc-admin-gate`, `fix/client-notification-window`
+- [ ] Uji verifikasi admin di bilik asli: online lewat akun admin, offline lewat Kunci LAN, simpan pengaturan, Mode Teknisi, tutup app. Uji dev server dan client di satu PC sudah lulus
+- [ ] Uji rename PC dengan bilik asli, termasuk web booking. Rename lewat LAN di uji dev sudah lulus
+- [x] Merge `feat/kiosk-switch` ke `main`
+- [x] Merge `feat/exe-allowlist` ke `main`
+- [ ] Push `main` ke GitHub
 - [ ] Uji di PC bilik asli: setup, kunci, maintenance, reboot, revert
 - [ ] Uji AppLocker mode audit dulu seminggu sebelum enforce
 
@@ -205,7 +207,7 @@ Fitur sekitar 88%. Siap jual ke warnet lain sekitar 62%.
 
 ## Urutan kerja yang disarankan
 
-1. Bagian 4.2 dan 4.3: perbaiki revert, merge dua branch, uji di bilik asli.
+1. Bagian 4.2 dan 4.3: uji di bilik asli atau VM. Merge sudah selesai.
 2. Bagian 5: pastikan web booking hidup.
 3. Bagian 7: pilot seminggu.
 4. Bagian 6: rilis, signing, lisensi.
