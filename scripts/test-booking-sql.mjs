@@ -43,6 +43,7 @@ async function freshDb() {
 
 const m004 = readFileSync(new URL('../supabase/migrations/004_booking_api.sql', import.meta.url), 'utf8');
 const m005 = readFileSync(new URL('../supabase/migrations/005_booking_guards.sql', import.meta.url), 'utf8');
+const m009 = readFileSync(new URL('../supabase/migrations/009_webhook_retry.sql', import.meta.url), 'utf8');
 const CREATE = `SELECT public.api_create_booking($1, 'test', $2, $3, $4, $5, $6, $7, $8, $9, $10) AS b`;
 
 async function run() {
@@ -65,6 +66,9 @@ async function run() {
   assert(true, 'migration 004 berjalan dan idempoten');
   await db.exec(m005);
   assert(true, 'migration 005 berjalan');
+  await db.exec(m009);
+  await db.exec(m009); // idempoten, dan tanpa pg_cron tetap jalan
+  assert(true, 'migration 009 berjalan dua kali tanpa pg_cron');
 
   // API key
   const key = (await db.query(`SELECT public.api_create_key('GC Net Booking') AS k`)).rows[0].k;
@@ -176,6 +180,80 @@ async function run() {
     INSERT INTO bookings (id, pc_id, paket_id, player_name, status) VALUES ('a','pc-01','p1','A','pending'), ('b','pc-01','p1','B','pending');`);
   await db3.exec(m004);
   await expectError(db3, m005, [], 'Rapikan dulu', 'migration 005 berhenti dengan instruksi jika ada duplikat lama');
+
+  // 009: retry webhook. net._http_response di-stub; jawaban pg_net diisi manual per request_id.
+  const db4 = await freshDb();
+  await db4.exec(NET_STUB);
+  await db4.exec(`CREATE TABLE net._http_response (id BIGINT PRIMARY KEY, status_code INT, timed_out BOOLEAN, error_msg TEXT);
+    INSERT INTO pcs (id, name) VALUES ('pc-01','PC-01'), ('pc-02','PC-02'); INSERT INTO pakets (id, name, duration_minutes) VALUES ('p1','P',60);`);
+  await db4.exec(m004);
+  await db4.exec(m005);
+  await db4.exec(m009);
+  await db4.query(`SELECT public.api_create_key('Retry')`);
+  const rKey = (await db4.query(`SELECT id FROM api_keys`)).rows[0].id;
+  await db4.query(`INSERT INTO webhook_endpoints (api_key_id, url, secret) VALUES ($1, 'https://example.com/hook', 'rahasia-retry')`, [rKey]);
+  const answer = (requestId, code, extra = '') => db4.exec(`INSERT INTO net._http_response (id, status_code, timed_out, error_msg) VALUES (${requestId}, ${code}, ${extra === 'timeout' ? 'true' : 'false'}, NULL)`);
+  const delivery = async (bookingId) => (await db4.query(`SELECT * FROM webhook_deliveries WHERE booking_id = $1 ORDER BY id LIMIT 1`, [bookingId])).rows[0];
+  const retry = async () => (await db4.query(`SELECT public.webhook_retry_pending() AS n`)).rows[0].n;
+  const due = (id) => db4.query(`UPDATE webhook_deliveries SET next_retry_at = now() - interval '1 second' WHERE id = $1`, [id]);
+
+  const r1 = (await db4.query(CREATE, [rKey, 'queue', 'pc-01', 'p1', 'Retry A', null, 'unpaid', null, null, null])).rows[0].b;
+  let d1 = await delivery(r1.id);
+  assert(d1.status === 'pending' && d1.attempts === 1 && d1.request_id !== null && d1.body?.event === 'booking.created', '009: kiriman pertama tercatat dengan body');
+  assert(await retry() === 0 && (await delivery(r1.id)).status === 'pending', '009: belum ada jawaban pg_net, kiriman ditunggu');
+  await answer(d1.request_id, 500);
+  await retry();
+  d1 = await delivery(r1.id);
+  assert(d1.request_id === null && d1.last_error === 'HTTP 500' && new Date(d1.next_retry_at) > new Date(), '009: HTTP 500 dijadwalkan ulang, belum dikirim');
+  assert(await retry() === 0, '009: belum jatuh tempo, tidak dikirim ulang');
+  const sentBefore = (await db4.query(`SELECT count(*)::int AS n FROM net.sent`)).rows[0].n;
+  await due(d1.id);
+  assert(await retry() === 1, '009: jatuh tempo, dikirim ulang');
+  const resent = (await db4.query(`SELECT * FROM net.sent ORDER BY id DESC LIMIT 1`)).rows[0];
+  const first = (await db4.query(`SELECT * FROM net.sent ORDER BY id LIMIT 1`)).rows[0];
+  assert((await db4.query(`SELECT count(*)::int AS n FROM net.sent`)).rows[0].n === sentBefore + 1, '009: tepat satu kiriman ulang');
+  assert(resent.body_text === first.body_text, '009: body kiriman ulang identik, delivery_id sama');
+  assert(resent.headers['X-GCHub-Signature'] === 'sha256=' + createHmac('sha256', 'rahasia-retry').update(resent.body_text).digest('hex'), '009: kiriman ulang bertanda tangan valid');
+  d1 = await delivery(r1.id);
+  assert(d1.attempts === 2 && d1.request_id === Number(resent.id), '009: percobaan bertambah, request_id baru');
+  await answer(d1.request_id, 200);
+  await retry();
+  d1 = await delivery(r1.id);
+  assert(d1.status === 'delivered' && d1.delivered_at && d1.last_error === null, '009: jawaban 2xx menandai terkirim');
+
+  // Gagal terus: berhenti di 5 kiriman
+  const r2 = (await db4.query(CREATE, [rKey, 'queue', 'pc-02', 'p1', 'Retry B', null, 'unpaid', null, null, null])).rows[0].b;
+  let d2 = await delivery(r2.id);
+  for (let i = 0; i < 10 && d2.status === 'pending'; i++) {
+    if (d2.request_id !== null) await answer(d2.request_id, 0, 'timeout');
+    await retry();
+    d2 = await delivery(r2.id);
+    if (d2.status === 'pending' && d2.request_id === null) { await due(d2.id); await retry(); d2 = await delivery(r2.id); }
+  }
+  assert(d2.status === 'failed' && d2.attempts === 5 && d2.last_error === 'Timeout', `009: berhenti setelah 5 kiriman (attempts ${d2.attempts}, ${d2.status})`);
+
+  // pg_net melempar error saat kirim pertama: tetap tercatat lalu diulang
+  await db4.exec(`CREATE OR REPLACE FUNCTION net.http_post(url TEXT, body JSONB DEFAULT '{}', params JSONB DEFAULT '{}', headers JSONB DEFAULT '{}', timeout_milliseconds INT DEFAULT 5000) RETURNS BIGINT LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'network down'; END $$;`);
+  await db4.query(`UPDATE bookings SET status = 'cancelled' WHERE id = $1`, [r2.id]);
+  let d3 = (await db4.query(`SELECT * FROM webhook_deliveries WHERE event = 'booking.cancelled'`)).rows[0];
+  assert(d3 && d3.request_id === null && d3.last_error.includes('network down') && d3.next_retry_at, '009: kiriman pertama yang error tetap dicatat untuk diulang');
+  await db4.exec(NET_STUB.replace('CREATE SCHEMA net;', '').replace('CREATE TABLE net.sent', 'CREATE TABLE IF NOT EXISTS net.sent').replace('CREATE FUNCTION', 'CREATE OR REPLACE FUNCTION'));
+  await due(d3.id);
+  assert(await retry() === 1, '009: setelah pg_net pulih, kiriman yang error dikirim ulang');
+
+  // Tidak ada jawaban sama sekali lebih dari 10 menit dihitung gagal
+  d3 = (await db4.query(`SELECT * FROM webhook_deliveries WHERE id = $1`, [d3.id])).rows[0];
+  await db4.query(`UPDATE webhook_deliveries SET sent_at = now() - interval '11 minutes' WHERE id = $1`, [d3.id]);
+  await retry();
+  d3 = (await db4.query(`SELECT * FROM webhook_deliveries WHERE id = $1`, [d3.id])).rows[0];
+  assert(d3.request_id === null && d3.last_error === 'Tidak ada jawaban dari pg_net', '009: tanpa jawaban 10 menit dijadwalkan ulang');
+
+  // Endpoint dimatikan: kiriman yang tertunda dihentikan
+  await db4.exec(`UPDATE webhook_endpoints SET active = false`);
+  await due(d3.id);
+  await retry();
+  d3 = (await db4.query(`SELECT * FROM webhook_deliveries WHERE id = $1`, [d3.id])).rows[0];
+  assert(d3.status === 'failed' && d3.last_error === 'Endpoint dinonaktifkan', '009: endpoint nonaktif menghentikan retry');
 
   console.log(failed ? `\n${failed} FAILED` : '\nALL PASSED');
   process.exit(failed ? 1 : 0);
