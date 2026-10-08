@@ -27,6 +27,21 @@ if (!fs.existsSync(DB_DIR)) {
 
 const DB_PATH = path.join(DB_DIR, 'gcserver.sqlite');
 
+// A restore prepared by stageRestore() waits here as a complete, checked database file. It is swapped
+// in before the live file is opened, because SQLite cannot replace a database under an open connection.
+const RESTORE_PENDING = path.join(DB_DIR, 'restore-pending.sqlite');
+if (fs.existsSync(RESTORE_PENDING)) {
+  try {
+    // The WAL belongs to the file being replaced (stageRestore checkpointed it empty); replayed onto the
+    // restored file it would corrupt it.
+    for (const ext of ['-wal', '-shm']) fs.rmSync(DB_PATH + ext, { force: true });
+    fs.renameSync(RESTORE_PENDING, DB_PATH);
+    console.log('[DB] Database dipulihkan dari backup.');
+  } catch (err) {
+    console.error('[DB] Backup gagal dipasang, database lama tetap dipakai:', err);
+  }
+}
+
 // Init better-sqlite3
 export const sqlite = new Database(DB_PATH, { 
   // verbose: console.log
@@ -59,15 +74,17 @@ function prune(pattern: RegExp, keep: number): void {
   files.slice(keep).forEach(f => fs.rmSync(path.join(BACKUP_DIR, f), { force: true }));
 }
 
+function backupName(manual: boolean, d = new Date()): string {
+  const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return manual
+    ? `gcserver-${stamp}-manual-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.sqlite`
+    : `gcserver-${stamp}.sqlite`;
+}
+
 export async function backupDatabase(manual = false): Promise<string | null> {
   try {
     fs.mkdirSync(BACKUP_DIR, { recursive: true });
-    const d = new Date();
-    const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-    const name = manual
-      ? `gcserver-${stamp}-manual-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.sqlite`
-      : `gcserver-${stamp}.sqlite`;
-    const target = path.join(BACKUP_DIR, name);
+    const target = path.join(BACKUP_DIR, backupName(manual));
     if (fs.existsSync(target)) return manual ? target : null; // backup harian hari ini sudah ada
 
     await sqlite.backup(target); // online backup bawaan SQLite, aman saat DB sedang dipakai
@@ -96,6 +113,64 @@ export function listBackups(): BackupFile[] {
       return { name: f, sizeBytes: st.size, createdAt: st.mtimeMs, kind: MANUAL_RE.test(f) ? 'manual' as const : 'harian' as const };
     })
     .sort((a, b) => b.createdAt - a.createdAt);
+}
+
+// Session columns cleared on restore, as updateWorkstationState does for a PC going idle.
+const SESSION_COLUMNS = ['currentUser', 'billingType', 'remainingSeconds', 'elapsedSeconds', 'totalSpent', 'sessionPricePerHour', 'packageName'];
+const SESSION_STATES = ['in_use', 'active_guest', 'active_member', 'suspended', 'locked'];
+
+/**
+ * Prepares a restore of one backup from BACKUP_DIR; it is applied on the next start, before the
+ * database opens. The copy is checked first, the current database is backed up as a manual backup
+ * (so the restore itself can be undone), and the WAL is checkpointed so nothing is lost on restart.
+ * The caller restarts the app.
+ */
+export async function stageRestore(name: string, operator: string): Promise<{ success: boolean; message: string; safetyBackup?: string }> {
+  if (!DAILY_RE.test(name) && !MANUAL_RE.test(name)) return { success: false, message: 'Nama file backup tidak valid.' };
+  const source = path.join(BACKUP_DIR, name);
+  if (!fs.existsSync(source)) return { success: false, message: 'File backup tidak ditemukan.' };
+
+  const staged = `${RESTORE_PENDING}.tmp`;
+  for (const f of [staged, `${staged}-wal`, `${staged}-shm`]) fs.rmSync(f, { force: true });
+  try {
+    fs.copyFileSync(source, staged);
+    const copy = new Database(staged, { fileMustExist: true });
+    try {
+      if (copy.pragma('integrity_check', { simple: true }) !== 'ok') throw new Error('integrity_check gagal');
+      const tables = new Set((copy.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[]).map(t => t.name));
+      if (!['Workstations', 'TransactionLogs', 'SystemLogs'].every(t => tables.has(t))) throw new Error('bukan database GC Hub');
+
+      // Sessions running when the backup was taken ended long ago; resuming them would hand out time again.
+      const columns = new Set((copy.prepare('PRAGMA table_info(Workstations)').all() as { name: string }[]).map(c => c.name));
+      if (columns.has('state')) {
+        const clear = SESSION_COLUMNS.filter(c => columns.has(c)).map(c => `${c} = NULL`);
+        copy.prepare(`UPDATE Workstations SET ${["state = 'idle'", ...clear].join(', ')} WHERE state IN (${SESSION_STATES.map(() => '?').join(', ')})`).run(...SESSION_STATES);
+      }
+      copy.prepare('INSERT INTO SystemLogs (eventTime, eventType, description, level) VALUES (?, 1, ?, 1)')
+        .run(Date.now(), `${operator} memulihkan database dari backup ${name}.`);
+      copy.pragma('journal_mode = DELETE'); // one self-contained file, no -wal to carry along
+    } finally {
+      copy.close();
+    }
+  } catch (err: any) {
+    fs.rmSync(staged, { force: true });
+    return { success: false, message: `Backup ${name} rusak atau bukan database GC Hub (${err?.message || err}).` };
+  }
+
+  // A manual backup made this same second would be handed back instead of a fresh copy of the database
+  while (fs.existsSync(path.join(BACKUP_DIR, backupName(true)))) await new Promise(r => setTimeout(r, 250));
+  const safety = await backupDatabase(true);
+  if (!safety) {
+    fs.rmSync(staged, { force: true });
+    return { success: false, message: 'Backup pengaman database sekarang gagal dibuat, pemulihan dibatalkan. Cek ruang disk.' };
+  }
+  sqlite.pragma('wal_checkpoint(TRUNCATE)');
+  fs.renameSync(staged, RESTORE_PENDING);
+  return {
+    success: true,
+    message: `Backup ${name} siap dipulihkan. Server restart sekarang. Database sebelumnya disimpan sebagai ${path.basename(safety)}.`,
+    safetyBackup: path.basename(safety)
+  };
 }
 
 export function startDailyBackup(): void {

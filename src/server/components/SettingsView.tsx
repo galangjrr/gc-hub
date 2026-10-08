@@ -366,6 +366,8 @@ const BackupTab: React.FC<{ isAdmin: boolean; onTriggerToast: SettingsViewProps[
   const [data, setData] = useState<{ dir: string; files: BackupFile[] } | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [toRestore, setToRestore] = useState<BackupFile | null>(null);
+  const [restarting, setRestarting] = useState(false);
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -386,6 +388,19 @@ const BackupTab: React.FC<{ isAdmin: boolean; onTriggerToast: SettingsViewProps[
     setBusy(false);
     onTriggerToast(res?.success ? 'Backup Selesai' : 'Backup Gagal', res?.message || 'Backup gagal.');
     if (res?.success) load();
+  };
+
+  const restore = async (file: BackupFile) => {
+    setToRestore(null);
+    setBusy(true);
+    const res = await api()?.restoreBackup?.(file.name);
+    setBusy(false);
+    if (!res?.success) {
+      onTriggerToast('Pemulihan Gagal', res?.message || 'Backup gagal dipulihkan.');
+      return;
+    }
+    setRestarting(true);
+    onTriggerToast('Memulihkan Backup', res.message);
   };
 
   const openFolder = async () => {
@@ -425,6 +440,7 @@ const BackupTab: React.FC<{ isAdmin: boolean; onTriggerToast: SettingsViewProps[
                     <th className={TH}>Jenis</th>
                     <th className={`${TH} text-right`}>Ukuran</th>
                     <th className={`${TH} text-right`}>Dibuat</th>
+                    {isAdmin && <th className={`${TH} text-right`}><span className="sr-only">Aksi</span></th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -434,14 +450,38 @@ const BackupTab: React.FC<{ isAdmin: boolean; onTriggerToast: SettingsViewProps[
                       <td className={`${TD} text-text-secondary capitalize`}>{f.kind}</td>
                       <td className={`${TD} font-mono tabular text-right text-text-secondary`}>{formatSize(f.sizeBytes)}</td>
                       <td className={`${TD} font-mono tabular text-right text-text-secondary`}>{formatDate(f.createdAt)}</td>
+                      {isAdmin && (
+                        <td className={`${TD} text-right whitespace-nowrap`}>
+                          <button type="button" disabled={busy || restarting} onClick={() => setToRestore(f)}
+                            className={cn(BTN_GHOST, 'text-text-secondary hover:text-text-primary hover:bg-surface-3')}>
+                            Pulihkan
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
               </table>
             )}
-            <p className="mt-3 text-[12px] text-text-muted">Pemulihan belum bisa dari aplikasi. Untuk memulihkan, tutup server lalu salin file backup menggantikan gcserver.sqlite di folder data.</p>
+            {restarting ? (
+              <p role="status" className="mt-3 text-[12px] text-warning">Server sedang restart untuk memasang backup. Jangan matikan PC.</p>
+            ) : (
+              <p className="mt-3 text-[12px] text-text-muted">Pemulihan hanya bisa saat semua PC kosong dan tidak ada tagihan belum bayar. Database sekarang disimpan dulu sebagai backup manual, jadi pemulihan bisa dibatalkan dengan memulihkan backup itu.</p>
+            )}
           </>
         )}
+
+      <ConfirmModal
+        isOpen={!!toRestore}
+        title="Pulihkan Backup"
+        description={`Pulihkan database dari ${toRestore?.name ?? ''}?`}
+        detail={`Semua transaksi, sesi, member, dan perubahan setelah ${toRestore ? formatDate(toRestore.createdAt) : ''} hilang dari database. Database sekarang disimpan dulu sebagai backup manual, lalu server restart.`}
+        iconType="warning"
+        confirmText="Pulihkan dan Restart"
+        confirmVariant="warning"
+        onConfirm={() => toRestore && restore(toRestore)}
+        onClose={() => setToRestore(null)}
+      />
     </Panel>
   );
 };

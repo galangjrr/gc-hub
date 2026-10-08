@@ -785,6 +785,10 @@ export class BillingEngine {
   }
 
 
+  public static hasActiveSessions(): boolean {
+    return this.activeSessions.size > 0;
+  }
+
   public static getSession(pcId: string): ActiveSessionState | undefined {
     if (this.activeSessions.has(pcId)) return this.activeSessions.get(pcId);
     const upper = pcId.toUpperCase();

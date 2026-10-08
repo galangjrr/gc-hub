@@ -74,7 +74,7 @@ import { WindowsProvisioner } from './windowsProvisioner';
 import { RemoteInputInjector } from './remoteInputInjector';
 import { OpCode, AuthPayload, ClientRegisterPayload, type SessionUserType, type SessionBillingType, type AdminAuthResult } from '../shared/protocol';
 import { TelemetryService } from './telemetry';
-import { startDailyBackup, backupDatabase, listBackups, BACKUP_DIR } from '../server/db';
+import { startDailyBackup, backupDatabase, listBackups, stageRestore, BACKUP_DIR } from '../server/db';
 
 let mainWindow: BrowserWindow | null = null;
 // Client in session: the widget window must stay just above the wallpaper, under every other window
@@ -1401,6 +1401,28 @@ ipcMain.handle('db:backup-now', async () => {
   if (denied) return denied;
   const file = await backupDatabase(true);
   return file ? { success: true, message: `Backup tersimpan: ${path.basename(file)}` } : { success: false, message: 'Backup gagal. Cek ruang disk dan izin folder data.' };
+});
+
+// Restoring replaces every transaction recorded after the backup, so running sessions and unpaid
+// bills (both only in this database) block it. The swap happens on restart, see stageRestore.
+ipcMain.handle('db:restore-backup', async (_event, name: unknown) => {
+  const denied = denyUnlessAdmin('memulihkan backup');
+  if (denied) return denied;
+  if (typeof name !== 'string' || !name) return { success: false, message: 'Pilih file backup yang mau dipulihkan.' };
+  if (BillingEngine.hasActiveSessions()) {
+    return { success: false, message: 'Masih ada sesi berjalan. Akhiri semua sesi dulu sebelum memulihkan backup.' };
+  }
+  if (DbService.getWorkstations().some(w => w.state === 'unpaid')) {
+    return { success: false, message: 'Masih ada tagihan belum bayar. Lunasi dulu sebelum memulihkan backup.' };
+  }
+  const res = await stageRestore(name, consoleOperator!.name);
+  if (!res.success) return res;
+  // Let the renderer show the answer first, then restart so the file is swapped before it opens
+  setTimeout(() => {
+    app.relaunch();
+    app.quit();
+  }, 2500);
+  return res;
 });
 
 ipcMain.handle('db:open-backup-folder', async () => {
