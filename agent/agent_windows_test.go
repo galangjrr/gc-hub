@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/registry"
 )
 
 func TestCheckTarget(t *testing.T) {
@@ -74,5 +75,44 @@ func TestIsRunningMatchesFullPath(t *testing.T) {
 	decoy := filepath.Join(os.TempDir(), "elsewhere", filepath.Base(self))
 	if isRunning(decoy) {
 		t.Fatal("same exe name in another folder counted as the client")
+	}
+}
+
+// TestKioskSwitchFailsClosed checks the kiosk switch reads "on" unless it was explicitly switched
+// off. It runs against HKCU so it needs no admin rights.
+func TestKioskSwitchFailsClosed(t *testing.T) {
+	kioskRoot = registry.CURRENT_USER
+	defer func() {
+		_ = registry.DeleteKey(kioskRoot, kioskKey)
+		kioskRoot = registry.LOCAL_MACHINE
+	}()
+	_ = registry.DeleteKey(kioskRoot, kioskKey)
+
+	if !kioskEnabled() {
+		t.Fatal("missing key must read as kiosk on")
+	}
+	if err := setOrDeleteDword(kioskRoot, kioskKey, kioskValue, true); err != nil {
+		t.Fatal(err)
+	}
+	if kioskEnabled() {
+		t.Fatal("kiosk still on after switching it off")
+	}
+	k, err := registry.OpenKey(kioskRoot, kioskKey, registry.SET_VALUE)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = k.SetStringValue(kioskValue, "1")
+	k.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !kioskEnabled() {
+		t.Fatal("a value of the wrong type must not unlock the booth")
+	}
+	if err := setOrDeleteDword(kioskRoot, kioskKey, kioskValue, false); err != nil {
+		t.Fatal(err)
+	}
+	if !kioskEnabled() {
+		t.Fatal("kiosk not back on after switching it on")
 	}
 }

@@ -20,7 +20,9 @@ const pipeName = `\\.\pipe\gc-hub-agent`
 // unlock the kiosk. That is bounded — escaping the kiosk already requires running arbitrary code,
 // which the HKLM policies here are not meant to stop. The upgrade path is to require a
 // server-signed unlock token (reuse lanAuth HMAC) on clear-policy; do it when booth bypass via a
-// dropped executable becomes a real problem.
+// dropped executable becomes a real problem. The same holds for set-kiosk, with one difference:
+// switching the kiosk off persists across reboots. It shows up on the cashier's PC panel through
+// telemetry, so the operator sees a booth left unlocked and can switch it back on.
 const pipeSDDL = "D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;GRGW;;;BU)"
 
 type request struct {
@@ -29,6 +31,8 @@ type request struct {
 	Policy PolicyConfig `json:"policy"`
 	PID    uint32       `json:"pid"`
 	Name   string       `json:"name"`
+	// Enabled is a pointer so a set-kiosk without it is rejected instead of read as "off".
+	Enabled *bool `json:"enabled"`
 }
 
 type response struct {
@@ -36,6 +40,7 @@ type response struct {
 	OK      bool     `json:"ok"`
 	Error   string   `json:"error,omitempty"`
 	Applied []string `json:"applied,omitempty"`
+	Kiosk   *bool    `json:"kioskEnabled,omitempty"`
 }
 
 type pipeServer struct {
@@ -85,12 +90,28 @@ func (p *pipeServer) handle(conn net.Conn) {
 func (p *pipeServer) dispatch(req request) response {
 	switch req.Cmd {
 	case "ping":
-		return response{ID: req.ID, OK: true}
+		on := kioskEnabled()
+		return response{ID: req.ID, OK: true, Kiosk: &on}
 	case "apply-policy":
 		p.mu.Lock()
-		applied, err := applyPolicy(req.Policy)
+		cfg := req.Policy
+		if !kioskEnabled() {
+			cfg = PolicyConfig{} // kiosk switched off: reconcile to unlocked, never lock
+		}
+		applied, err := applyPolicy(cfg)
 		p.mu.Unlock()
 		return result(req.ID, applied, err)
+	case "set-kiosk":
+		if req.Enabled == nil {
+			return response{ID: req.ID, OK: false, Error: "field enabled wajib diisi"}
+		}
+		p.mu.Lock()
+		err := setKioskEnabled(*req.Enabled)
+		p.mu.Unlock()
+		if err != nil {
+			return response{ID: req.ID, OK: false, Error: err.Error()}
+		}
+		return response{ID: req.ID, OK: true, Kiosk: req.Enabled}
 	case "clear-policy":
 		p.mu.Lock()
 		err := clearPolicy()

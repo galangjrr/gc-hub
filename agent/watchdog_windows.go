@@ -62,6 +62,9 @@ func (w *watchdog) run() {
 func (w *watchdog) close() { close(w.stop) }
 
 func (w *watchdog) tick() {
+	if !kioskEnabled() {
+		return // operator switched the kiosk off: the client may stay closed
+	}
 	session := windows.WTSGetActiveConsoleSessionId()
 	if session == 0xFFFFFFFF {
 		return // no console user: nothing to lock, do not launch anything

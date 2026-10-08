@@ -128,7 +128,7 @@ export interface CouponRedeemResultPayload {
 
 export interface RemoteCommandPayload {
   action: 'shutdown' | 'restart' | 'lock' | 'unlock' | 'set_volume' | 'capture_screen' | 'screen_capture_response' | 'send_message' | 'broadcast_message' | 'client_chat_reply' | 'wake_on_lan' | 'vnc_signal' | 'remote_mouse_move' | 'remote_mouse_click' | 'remote_mouse_scroll' | 'remote_key_event' | 'remote_key_combo' | 'remote_text_input'
-    | 'fetch_processes' | 'kill_process' | 'sync_catalog' | 'rename_pc'
+    | 'fetch_processes' | 'kill_process' | 'sync_catalog' | 'rename_pc' | 'set_kiosk'
     // client -> server
     | 'telemetry' | 'process_list' | 'kill_process_result' | 'rename_pc_result';
   params?: any;
@@ -144,6 +144,11 @@ export interface RenamePcResultPayload {
   name: string;
   success: boolean;
   message?: string;
+}
+
+// Saklar kiosk total: false = policy Windows dilepas dan watchdog berhenti sampai dinyalakan lagi.
+export interface SetKioskPayload {
+  enabled: boolean;
 }
 
 export interface ScreenCaptureResponsePayload {
@@ -228,6 +233,7 @@ export interface HardwareTelemetryPayload {
   audioVolumePercent?: number;
   isMuted?: boolean;
   uptimeSeconds?: number;
+  kioskEnabled?: boolean;      // saklar kiosk di gc-agent; undefined = agent belum terpasang
   timestamp: number;
 }
 

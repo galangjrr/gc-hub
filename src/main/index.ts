@@ -72,12 +72,13 @@ import { SessionCleanupService } from './cleanup';
 import { SupabaseSyncService, cloudPcId, localPcName, type CloudBooking, type CloudRemoteCommand } from '../server/services/supabaseSyncService';
 import { WindowsProvisioner } from './windowsProvisioner';
 import { RemoteInputInjector } from './remoteInputInjector';
-import { OpCode, AuthPayload, ClientRegisterPayload, type SessionUserType, type SessionBillingType, type AdminAuthRequest, type AdminAuthResult, type Packet } from '../shared/protocol';
+import { OpCode, AuthPayload, ClientRegisterPayload, type SessionUserType, type SessionBillingType, type AdminAuthRequest, type AdminAuthResult, type Packet, type SetKioskPayload } from '../shared/protocol';
 import { signAdminGrant, signPacket, verifyPacket } from '../shared/lanAuth';
 import { initPcRename, requestPcRename } from '../server/network/pcRename';
 import { pcNameError } from '../shared/pcName';
 import { ClientAdminGate } from './clientAdminGate';
 import { TelemetryService } from './telemetry';
+import { AgentClient } from './agentClient';
 // Inlined as data URLs by the electron build: the notification window is a data: page and cannot load app files
 import geistFont from '../shared/assets/fonts/Geist.woff2';
 import geistMonoFont from '../shared/assets/fonts/GeistMono.woff2';
@@ -743,6 +744,7 @@ function setupServerNetworkHandlers() {
     switch (action) {
       case 'telemetry':
         BillingEngine.setActiveApp(client.pcName || client.pcId, typeof params?.activeApp === 'string' ? params.activeApp : undefined);
+        BillingEngine.setKioskState(client.pcName || client.pcId, typeof params?.kioskEnabled === 'boolean' ? params.kioskEnabled : undefined);
         ui.send('client:telemetry-update', { pcId: client.pcId, telemetry: params });
         break;
       case 'process_list':
@@ -1149,6 +1151,24 @@ ipcMain.handle('security:set-lockdown', (_event, locked: unknown) => {
   if (isServerMode || typeof locked !== 'boolean') return false;
   SecurityManager.setLockdownMode(locked);
   return true;
+});
+
+// Kiosk switch on this booth. Reaches the renderer only from the admin-verified booth settings or
+// a signed set_kiosk from the server; the agent pipe itself is the real boundary (see agent/pipe_windows.go).
+ipcMain.handle('system:get-kiosk', async () => {
+  if (isServerMode || process.platform !== 'win32') return undefined;
+  return AgentClient.getKioskEnabled().catch(() => undefined);
+});
+
+ipcMain.handle('system:set-kiosk', async (_event, enabled: unknown) => {
+  if (isServerMode || typeof enabled !== 'boolean') return { success: false, message: 'Permintaan tidak valid.' };
+  try {
+    await AgentClient.setKioskEnabled(enabled);
+  } catch (err: any) {
+    return { success: false, message: `gc-agent tidak bisa dihubungi: ${err?.message || err}` };
+  }
+  SecurityManager.setKioskEnabled(enabled);
+  return { success: true };
 });
 
 ipcMain.handle('system:reset-audio', async (_event, volume?: number) => {
@@ -1771,7 +1791,31 @@ ipcMain.handle('server:rename-pc', async (_event, { pcId, name }: { pcId: unknow
 
 ipcMain.handle('server:send-to-client', (_event, { pcId, op, payload }: { pcId: string; op: OpCode; payload?: any }) => {
   if (!isServerMode) return false;
+  if (payload?.action === 'set_kiosk') return false; // only through server:set-kiosk, which checks the role
   return ServerNetworkBridge.sendToClient(pcId, op, payload);
+});
+
+ipcMain.handle('server:set-kiosk', (_event, { pcId, enabled }: { pcId: unknown; enabled: unknown }) => {
+  if (!isServerMode || typeof pcId !== 'string' || !pcId.trim() || typeof enabled !== 'boolean') {
+    return { success: false, message: 'Permintaan tidak valid.' };
+  }
+  // Switching the kiosk off leaves a booth open to Windows, so it is admin-only; switching on is not
+  if (!enabled) {
+    const denied = denyUnlessAdmin('mematikan mode kiosk');
+    if (denied) return denied;
+  }
+  const payload: SetKioskPayload = { enabled };
+  if (!ServerNetworkBridge.sendToClient(pcId, OpCode.REMOTE_COMMAND, { action: 'set_kiosk', params: payload })) {
+    return { success: false, message: `${pcId} tidak tersambung.` };
+  }
+  DbService.addSystemLog({
+    type: 'client',
+    event: enabled ? 'Kiosk On' : 'Kiosk Off',
+    details: `Mode kiosk ${pcId} ${enabled ? 'dinyalakan' : 'dimatikan'}`,
+    operator: consoleOperator?.name || 'Kasir',
+    targetPc: pcId
+  });
+  return { success: true };
 });
 
 ipcMain.handle('server:broadcast', (_event, { op, payload }: { op: OpCode; payload?: any }) => {

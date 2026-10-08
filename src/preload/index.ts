@@ -31,6 +31,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getRunningProcesses: (includeSystem?: boolean) => ipcRenderer.invoke('system:get-running-processes', includeSystem),
   killProcess: (pid: number, processName: string, isClientRequest?: boolean) => ipcRenderer.invoke('system:kill-process', { pid, processName, isClientRequest }),
   setLockdownMode: (locked: boolean) => ipcRenderer.invoke('security:set-lockdown', locked),
+  getKioskEnabled: () => ipcRenderer.invoke('system:get-kiosk'),
+  setKioskEnabled: (enabled: boolean) => ipcRenderer.invoke('system:set-kiosk', enabled),
   cleanupSession: () => ipcRenderer.invoke('client:cleanup-session'),
   getTelemetry: (pcId?: string) => ipcRenderer.invoke('system:get-telemetry', pcId),
   resetAudioVolume: (volume?: number) => ipcRenderer.invoke('system:reset-audio', volume),
@@ -50,6 +52,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   sendToClient: (pcId: string, op: OpCode, payload?: any) => ipcRenderer.invoke('server:send-to-client', { pcId, op, payload }),
   renamePc: (pcId: string, name: string) => ipcRenderer.invoke('server:rename-pc', { pcId, name }),
   broadcastToClients: (op: OpCode, payload?: any) => ipcRenderer.invoke('server:broadcast', { op, payload }),
+  setClientKiosk: (pcId: string, enabled: boolean) => ipcRenderer.invoke('server:set-kiosk', { pcId, enabled }),
 
   // Database APIs
   getWorkstations: () => ipcRenderer.invoke('db:get-workstations'),

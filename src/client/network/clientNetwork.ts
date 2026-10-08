@@ -259,19 +259,22 @@ export class ClientNetworkService {
 
   private static startTelemetryReporting(): void {
     this.stopTelemetryReporting();
-    this.telemetryInterval = setInterval(async () => {
-      if (!this.isConnected || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    this.telemetryInterval = setInterval(() => this.sendTelemetry(), 10000);
+  }
 
-      try {
-        const api = typeof window !== 'undefined' ? (window as any).electronAPI : null;
-        const snapshot = api?.getTelemetry ? await api.getTelemetry(this.pcId) : null;
-        if (snapshot) {
-          this.send(OpCode.REMOTE_COMMAND, { action: 'telemetry', params: snapshot });
-        }
-      } catch (err) {
-        console.warn('[CLIENT NETWORK] Telemetry send failed:', err);
+  /** Report telemetry now, e.g. right after a kiosk switch so the cashier sees it without waiting. */
+  public static async sendTelemetry(): Promise<void> {
+    if (!this.isConnected || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+    try {
+      const api = typeof window !== 'undefined' ? (window as any).electronAPI : null;
+      const snapshot = api?.getTelemetry ? await api.getTelemetry(this.pcId) : null;
+      if (snapshot) {
+        this.send(OpCode.REMOTE_COMMAND, { action: 'telemetry', params: snapshot });
       }
-    }, 10000);
+    } catch (err) {
+      console.warn('[CLIENT NETWORK] Telemetry send failed:', err);
+    }
   }
 
   private static stopTelemetryReporting(): void {

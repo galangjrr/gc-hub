@@ -33,6 +33,7 @@ interface AgentResponse {
   ok: boolean;
   error?: string;
   applied?: string[];
+  kioskEnabled?: boolean;
 }
 
 function sendCommand(cmd: string, extra: Record<string, unknown> = {}): Promise<AgentResponse> {
@@ -86,6 +87,16 @@ export const AgentClient = {
         disableRegistryTools: false
       }
     });
+  },
+
+  /** Read the kiosk switch. Resolves undefined from an older agent that does not know it. */
+  async getKioskEnabled(): Promise<boolean | undefined> {
+    return (await sendCommand('ping')).kioskEnabled;
+  },
+
+  /** Switch kiosk mode on or off. Off clears the policy and stops the watchdog until switched back on. */
+  setKioskEnabled(enabled: boolean): Promise<AgentResponse> {
+    return sendCommand('set-kiosk', { enabled });
   },
 
   /**

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Workstation } from '../../shared/types';
 import { ConfirmModal, ConfirmModalProps } from '../../shared/ui/ConfirmModal';
+import { Switch } from '../../shared/ui/primitives';
 import { CardStatus, cardStatus, footText, hhmm, rupiah, timeLine } from './PcCard';
 import { Modal, Field, INPUT, BTN_PRIMARY, BTN_SECONDARY } from '../../shared/ui/primitives';
 import { pcNameError } from '../../shared/pcName';
@@ -91,7 +92,7 @@ const STATUS: Record<CardStatus, { label: string; token: string }> = {
   off:    { label: 'Mati',              token: '--gc-text-disabled' },
 };
 
-type ConfirmKind = 'logout' | 'restart' | 'shutdown' | 'delete_pc';
+type ConfirmKind = 'logout' | 'restart' | 'shutdown' | 'delete_pc' | 'kiosk_off';
 
 const confirmCopy = (kind: ConfirmKind, pc: Workstation): Omit<ConfirmModalProps, 'isOpen' | 'onConfirm' | 'onClose'> => {
   switch (kind) {
@@ -115,6 +116,13 @@ const confirmCopy = (kind: ConfirmKind, pc: Workstation): Omit<ConfirmModalProps
         description: `Matikan ${pc.name} sekarang?`,
         detail: 'Aplikasi yang terbuka di PC ini akan tertutup tanpa disimpan.',
         iconType: 'danger', confirmText: 'Matikan', confirmVariant: 'danger',
+      };
+    case 'kiosk_off':
+      return {
+        title: 'Matikan Mode Kiosk',
+        description: `Lepas semua pembatasan Windows di ${pc.name}?`,
+        detail: 'Task Manager, Run, Control Panel, dan Regedit terbuka, dan aplikasi bilik boleh ditutup. Tetap mati setelah restart sampai dinyalakan lagi.',
+        iconType: 'warning', confirmText: 'Matikan Kiosk', confirmVariant: 'warning',
       };
     case 'delete_pc':
       return {
@@ -217,6 +225,14 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
   const remainingSeconds = pc.remainingSeconds ?? (pc.timeRemainingMinutes !== undefined ? pc.timeRemainingMinutes * 60 : undefined);
   // Same rule as BillingEngine.refundSession: only paid prepaid sessions have cash to give back.
   const canRefund = isActive && !isPostpaid && pc.billingType !== 'member' && (pc.moneyUsed || 0) > 0 && (remainingSeconds ?? 0) > 0;
+
+  // Switch works only on a connected PC whose gc-agent has reported its state
+  const kioskKnown = pc.state !== 'offline' && !pc.isDisconnected && pc.kioskEnabled !== undefined;
+  const kioskNote = pc.state === 'offline' || pc.isDisconnected
+    ? 'PC tidak tersambung'
+    : pc.kioskEnabled === undefined
+      ? 'gc-agent belum terpasang'
+      : pc.kioskEnabled ? 'Nyala, Windows dibatasi' : 'Mati, Windows bebas dipakai';
 
   const simulate = (minutes: number) => (window as any).electronAPI?.simulateSessionElapsed?.(pc.name, minutes);
 
@@ -371,6 +387,20 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
             <Action icon={RotateCcw} label="Restart" tone="warning" onClick={() => setConfirm('restart')} />
             <Action icon={Power} label="Matikan" tone="danger" onClick={() => setConfirm('shutdown')} />
           </div>
+          <div className="flex items-center gap-3 mt-2 px-2.5 py-2 rounded-sm border border-hairline bg-surface-2">
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-medium text-text-primary">Mode Kiosk</div>
+              <div className={`text-[12px] truncate ${pc.kioskEnabled === false ? 'text-warning' : 'text-text-muted'}`}>
+                {kioskNote}
+              </div>
+            </div>
+            <Switch
+              checked={pc.kioskEnabled !== false}
+              disabled={!kioskKnown}
+              onChange={(on) => (on ? onAction('kiosk', pc, true) : setConfirm('kiosk_off'))}
+              label={`Mode Kiosk ${pc.name}`}
+            />
+          </div>
         </section>
 
         {pc.historyEvents && pc.historyEvents.length > 0 && (
@@ -427,7 +457,7 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
         <ConfirmModal
           isOpen
           {...confirmCopy(confirm, pc)}
-          onConfirm={() => onAction(confirm, pc)}
+          onConfirm={() => (confirm === 'kiosk_off' ? onAction('kiosk', pc, false) : onAction(confirm, pc))}
           onClose={() => setConfirm(null)}
         />
       )}

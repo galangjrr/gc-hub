@@ -79,6 +79,16 @@ export class BillingEngine {
     this.notifyListeners();
   }
 
+  // Kiosk switch per PC, as last reported by client telemetry; undefined = no gc-agent report.
+  private static kioskStates = new Map<string, boolean>();
+
+  public static setKioskState(pcId: string, enabled: boolean | undefined): void {
+    const key = pcId.trim().toUpperCase();
+    if (this.kioskStates.get(key) === enabled) return;
+    if (enabled === undefined) this.kioskStates.delete(key); else this.kioskStates.set(key, enabled);
+    this.notifyListeners();
+  }
+
   public static findUnpaidWorkstation(pcId: string): Workstation | undefined {
     const key = pcId.trim().toUpperCase();
     return DbService.getWorkstations().find(w =>
@@ -1368,7 +1378,7 @@ export class BillingEngine {
     const connectedClients = ServerNetworkBridge.getConnectedClients();
     const connectedPcIds = new Set(connectedClients.map(c => (c.pcName || c.pcId).toUpperCase()));
     
-    return workstations.map(ws => {
+    return workstations.map((ws): Workstation => {
       // Matched by name only: every connecting client registers its own row (upsertWorkstation),
       // and an IP match marked unrelated rows online when they shared a stale or placeholder IP.
       const isConnected = connectedPcIds.has(ws.name.toUpperCase()) ||
@@ -1452,7 +1462,7 @@ export class BillingEngine {
         pendingOrderCount: pendingOrders.length,
         pendingOrderSummary: pendingSummary
       };
-    });
+    }).map(w => ({ ...w, kioskEnabled: this.kioskStates.get(w.name.toUpperCase()) }));
   }
 
   public static setPendingOrder(pcId: string, order: any): void {

@@ -18,6 +18,9 @@ function getGlobalShortcut() {
  */
 export class SecurityManager {
   private static isLocked = false;
+  // Kiosk switch mirrored from gc-agent. Off = operator took the booth out of kiosk mode, so no
+  // Windows restriction is enforced even on the lock screen.
+  private static kioskEnabled = true;
   private static guardIntervalId: NodeJS.Timeout | null = null;
   private static targetWindow: BrowserWindow | null = null;
 
@@ -39,6 +42,10 @@ export class SecurityManager {
     return !(app?.isPackaged ?? false) || !!process.env.VITE_DEV_SERVER_URL || process.env.NODE_ENV === 'development';
   }
 
+  private static isEnforcing(): boolean {
+    return this.isLocked && this.kioskEnabled && !this.isDevEnvironment();
+  }
+
   /**
    * Initialize security listeners on the target BrowserWindow
    */
@@ -48,9 +55,9 @@ export class SecurityManager {
 
     // Refocus immediately if focus is lost (e.g. Task View / Win+Tab attempts)
     window.on('blur', () => {
-      if (this.isLocked && !this.isDevEnvironment()) {
+      if (this.isEnforcing()) {
         setTimeout(() => {
-          if (this.isLocked && this.targetWindow && !this.targetWindow.isDestroyed()) {
+          if (this.isEnforcing() && this.targetWindow && !this.targetWindow.isDestroyed()) {
             this.targetWindow.focus();
           }
         }, 40);
@@ -59,6 +66,19 @@ export class SecurityManager {
 
     // Proactively clean any orphaned policy locks from previous crashes on startup
     this.purgeRegistryRestrictions();
+
+    // The switch survives reboots inside the agent; pick it up so a booth left unlocked stays unlocked
+    if (process.platform === 'win32') {
+      AgentClient.getKioskEnabled()
+        .then((on) => { if (on === false) this.setKioskEnabled(false); })
+        .catch(() => {}); // agent absent: kiosk stays on, same as before the switch existed
+    }
+  }
+
+  /** Mirror the agent's kiosk switch and re-apply the current lock state under it. */
+  public static setKioskEnabled(enabled: boolean): void {
+    this.kioskEnabled = enabled;
+    this.setLockdownMode(this.isLocked);
   }
 
   /**
@@ -67,18 +87,16 @@ export class SecurityManager {
   public static setLockdownMode(locked: boolean): void {
     this.isLocked = locked;
 
-    if (this.isDevEnvironment() || !locked) {
+    if (!this.isEnforcing()) {
       this.stopRestrictedProcessKiller();
       this.unregisterGlobalShortcuts();
       this.syncAgentPolicy(false);
       return;
     }
 
-    if (locked) {
-      this.startRestrictedProcessKiller();
-      this.registerGlobalShortcuts();
-      this.syncAgentPolicy(true);
-    }
+    this.startRestrictedProcessKiller();
+    this.registerGlobalShortcuts();
+    this.syncAgentPolicy(true);
   }
 
   /**
@@ -101,7 +119,7 @@ export class SecurityManager {
    */
   private static setupInputInterceptor(win: BrowserWindow): void {
     win.webContents.on('before-input-event', (event, input) => {
-      if (!this.isLocked || this.isDevEnvironment()) return;
+      if (!this.isEnforcing()) return;
 
       const key = input.key.toLowerCase();
       const code = input.code ? input.code.toLowerCase() : '';
@@ -189,12 +207,12 @@ export class SecurityManager {
    * Start background process killer for restricted tools ONLY while locked in production
    */
   public static startRestrictedProcessKiller(): void {
-    if (this.guardIntervalId || this.isDevEnvironment()) return;
+    if (this.guardIntervalId || !this.isEnforcing()) return;
 
     // Satu proses taskkill untuk semua nama (/IM bisa diulang), bukan satu spawn per nama tiap tick
     const args = ['/F', '/T', ...this.RESTRICTED_PROCESSES_LOCKSCREEN.flatMap(name => ['/IM', name])];
     this.guardIntervalId = setInterval(() => {
-      if (!this.isLocked || this.isDevEnvironment()) return;
+      if (!this.isEnforcing()) return;
       execFile('taskkill', args, { windowsHide: true }, () => {});
     }, 1000);
   }

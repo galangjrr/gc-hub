@@ -60,6 +60,7 @@ export interface Workstation {
   packagePrice?: number;
   stackedPackages?: StackedPackageItem[];
   activeApp?: string;
+  kioskEnabled?: boolean; // from client telemetry; undefined = gc-agent missing or no report yet
   hasPendingOrder?: boolean;
   pendingOrderSummary?: string;
   isUnpaid?: boolean;
