@@ -178,9 +178,9 @@ Fitur sekitar 88%. Siap jual ke warnet lain sekitar 62%.
 - [x] Booking API v1, Edge Function `api` sudah deploy
 - [x] Migration 004 sampai 008 sudah jalan
 - [x] Policy public key di web booking dikunci
-- [ ] Pastikan web booking hidup dengan key baru di env hosting
-- [ ] `/api/data` publik berhenti mengirim `daily_pdf_revenue`
-- [ ] Webhook booking punya retry, sekarang ditandai `ponytail:`
+- [x] Web booking hidup dengan key baru: dicek 2026-10-08, `/api/data` dan `/api/pcs` jalan, bundle publik cuma berisi `sb_publishable_`
+- [ ] `/api/data` publik berhenti mengirim `daily_pdf_revenue`: kode beres di GC Net Booking `760b259`, live setelah push dan deploy Vercel
+- [ ] Webhook booking punya retry: migration `009_webhook_retry.sql` siap dan lulus test, tinggal dijalankan di SQL Editor Supabase
 
 ---
 

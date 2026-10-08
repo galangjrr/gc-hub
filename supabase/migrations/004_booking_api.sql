@@ -411,8 +411,7 @@ CREATE TRIGGER trg_bookings_touch BEFORE INSERT OR UPDATE ON public.bookings
 FOR EACH ROW EXECUTE FUNCTION public.bookings_touch();
 
 -- Kirim webhook via pg_net. Tanda tangan: X-GCHub-Signature = sha256=<hex HMAC(body, secret)>.
--- ponytail: pg_net tidak retry otomatis; status tiap kiriman ada di net._http_response (request_id).
--- Upgrade: worker retry yang membaca webhook_deliveries + net._http_response.
+-- pg_net tidak retry otomatis; retry ada di 009_webhook_retry.sql, yang mengganti fungsi ini.
 CREATE OR REPLACE FUNCTION public.bookings_webhook_dispatch()
 RETURNS TRIGGER
 LANGUAGE plpgsql

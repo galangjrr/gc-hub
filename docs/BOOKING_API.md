@@ -18,7 +18,8 @@ GC Hub Server tidak perlu IP publik atau port forwarding. Billing tetap jalan pe
 2. Jalankan migration berurutan di SQL Editor atau `supabase db push`:
    - `supabase/migrations/004_booking_api.sql`
    - `supabase/migrations/005_booking_guards.sql` (jika gagal, pesan error berisi query untuk merapikan booking dobel lama)
-3. Aktifkan extension **pg_net** (Database > Extensions) agar webhook terkirim. Tanpa pg_net, booking tetap jalan, hanya webhook yang tidak dikirim.
+   - `supabase/migrations/009_webhook_retry.sql` (retry webhook, ikut menyalakan pg_cron kalau tersedia)
+3. Aktifkan extension **pg_net** (Database > Extensions) agar webhook terkirim. Tanpa pg_net, booking tetap jalan, hanya webhook yang tidak dikirim. Aktifkan juga **pg_cron** sebelum 009 kalau migration tidak bisa menyalakannya sendiri.
 4. Deploy Edge Function:
    ```bash
    supabase functions deploy api --no-verify-jwt
@@ -185,7 +186,15 @@ export function isValidGcHubWebhook(rawBody: string, signatureHeader: string, se
 }
 ```
 
-Gunakan body mentah persis seperti diterima, jangan hasil `JSON.stringify` ulang. Pakai `delivery_id` untuk mengabaikan kiriman ganda. Webhook tidak di-retry otomatis; status tiap kiriman bisa dicek lewat `webhook_deliveries.request_id` di `net._http_response`. Untuk rekonsiliasi, panggil `GET /v1/bookings/{id}` secara berkala.
+Gunakan body mentah persis seperti diterima, jangan hasil `JSON.stringify` ulang. Balas dengan status 2xx; status lain, timeout 5 detik, atau error jaringan dihitung gagal.
+
+**Retry** (migration 009): kiriman gagal diulang setelah 1, 4, 16, lalu 64 menit, maksimal 5 kiriman. Body kiriman ulang identik, termasuk `delivery_id`, jadi pakai `delivery_id` untuk mengabaikan kiriman ganda. Job pg_cron `gchub-webhook-retry` menjalankan `public.webhook_retry_pending()` tiap menit. Status tiap kiriman ada di `webhook_deliveries` (`status` = `pending`, `delivered`, atau `failed`, plus `attempts` dan `last_error`):
+
+```sql
+SELECT event, booking_id, status, attempts, last_error, sent_at FROM webhook_deliveries ORDER BY id DESC LIMIT 20;
+```
+
+Untuk rekonsiliasi setelah penerima lama mati, tetap panggil `GET /v1/bookings/{id}`.
 
 ---
 
