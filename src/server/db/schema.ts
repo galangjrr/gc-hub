@@ -243,7 +243,9 @@ export const orderItemLogs = sqliteTable('OrderItemLogs', {
   employeeId: integer('employeeId').notNull().default(1),
   note: text('note'),
   physicalDeleted: integer('physicalDeleted').default(0),
-  enabled: integer('enabled').notNull().default(1)
+  enabled: integer('enabled').notNull().default(1),
+  costPrice: real('costPrice'),
+  soldAt: integer('soldAt')
 });
 
 // 15. Employees (Operator & Staff Kasir)

@@ -880,7 +880,7 @@ export const ServerView: React.FC = () => {
               )}
 
               {activeTab === 'laporan' && (
-                <RevenueReportView />
+                <RevenueReportView isAdmin={isAdmin} />
               )}
 
               {activeTab === 'log' && (

@@ -216,6 +216,25 @@ export interface FbOrderItem {
   orderedAmount?: number;
 }
 
+export interface FnbMarginItem {
+  name: string;
+  qty: number;
+  costedRevenue: number;   // sales of units whose cost was known
+  cost: number;
+  profit: number;          // costedRevenue - cost
+  uncostedRevenue: number; // sales of units sold before a cost was entered
+  uncostedQty: number;
+}
+
+export interface FnbMargin {
+  items: FnbMarginItem[];
+  costedRevenue: number;
+  cost: number;
+  profit: number;
+  uncostedRevenue: number;
+  uncostedQty: number;
+}
+
 export interface ProductItem {
   id: number;
   categoryId: number;
