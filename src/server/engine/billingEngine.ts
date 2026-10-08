@@ -1497,6 +1497,26 @@ export class BillingEngine {
     return result;
   }
 
+  /** Why a PC cannot be renamed right now, or null. Sessions, bills and orders are keyed by the name. */
+  public static renameBlock(pcId: string): string | null {
+    if (this.getSession(pcId)) return `${pcId} sedang dipakai. Ganti nama setelah sesinya selesai.`;
+    const key = pcId.trim().toUpperCase();
+    const ws = DbService.getWorkstations().find(w => w.name.toUpperCase() === key || (w.pcId || '').toUpperCase() === key);
+    if (ws?.state === 'unpaid') return `${pcId} masih punya tagihan belum bayar. Lunasi dulu.`;
+    if ((this.pendingOrdersMap.get(key) || []).length > 0) return `${pcId} masih punya pesanan yang belum diproses.`;
+    return null;
+  }
+
+  public static renameWorkstation(pcId: string, newName: string): { success: boolean; message: string } {
+    const blocked = this.renameBlock(pcId);
+    if (blocked) return { success: false, message: blocked };
+    const res = DbService.renameWorkstation(pcId, newName);
+    if (!res.success) return res;
+    this.activeApps.delete(pcId.trim().toUpperCase());
+    this.notifyListeners();
+    return res;
+  }
+
   public static deleteWorkstation(identifier: { id?: number; name?: string; pcId?: string } | string | number): void {
     let nameStr = '';
     let pcIdStr = '';

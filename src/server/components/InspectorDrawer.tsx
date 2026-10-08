@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Workstation } from '../../shared/types';
 import { ConfirmModal, ConfirmModalProps } from '../../shared/ui/ConfirmModal';
 import { CardStatus, cardStatus, footText, hhmm, rupiah, timeLine } from './PcCard';
+import { Modal, Field, INPUT, BTN_PRIMARY, BTN_SECONDARY } from '../../shared/ui/primitives';
+import { pcNameError } from '../../shared/pcName';
 import {
   X,
   Pin,
@@ -23,6 +25,7 @@ import {
   Hamburger,
   Banknote,
   ChevronRight,
+  PencilLine,
 } from 'lucide-react';
 
 // Right-hand inspector for the selected PC. Colors and status words follow DESIGN.md sections 2, 4 and 5.
@@ -41,7 +44,43 @@ interface InspectorDrawerProps {
   onOpenChatModal: (pc: Workstation) => void;
   onOpenOrderModal: (pc: Workstation) => void;
   onOpenTaskManagerModal?: (pc: Workstation) => void;
+  /** Admin only; the booth must be online and free. Resolves with the server's answer. */
+  onRenamePc?: (pc: Workstation, name: string) => Promise<{ success: boolean; message: string }>;
 }
+
+const RenamePcModal: React.FC<{ pc: Workstation; onRename: (name: string) => Promise<{ success: boolean; message: string }>; onClose: () => void }> = ({ pc, onRename, onClose }) => {
+  const [name, setName] = useState(pc.name);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = name.trim();
+    const nameError = pcNameError(clean) || (clean === pc.name ? 'Nama baru sama dengan nama sekarang.' : null);
+    if (nameError) return setError(nameError);
+    setSaving(true);
+    setError(null);
+    const res = await onRename(clean).catch((err: any) => ({ success: false, message: err?.message || 'Server tidak menjawab.' }));
+    setSaving(false);
+    if (res.success) onClose();
+    else setError(res.message);
+  };
+
+  return (
+    <Modal title={`Ganti Nama ${pc.name}`} onClose={onClose}>
+      <form onSubmit={submit} className="space-y-4">
+        <Field label="Nama baru" htmlFor="rename-pc" hint="Dipakai di denah, laporan, dan web booking. PC harus menyala dan sedang kosong." error={error || undefined}>
+          <input id="rename-pc" className={INPUT} value={name} maxLength={24} autoFocus disabled={saving}
+            onChange={e => { setName(e.target.value); setError(null); }} aria-invalid={!!error} />
+        </Field>
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={onClose} className={BTN_SECONDARY}>Batal</button>
+          <button type="submit" disabled={saving} className={BTN_PRIMARY}>{saving ? 'Menunggu PC...' : 'Ganti Nama'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+};
 
 const STATUS: Record<CardStatus, { label: string; token: string }> = {
   main:   { label: 'Sesi berjalan',     token: '--gc-primary' },
@@ -154,9 +193,11 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
   onOpenChatModal,
   onOpenOrderModal,
   onOpenTaskManagerModal,
+  onRenamePc,
 }) => {
   // Hook stays above the early return, otherwise closing and reopening the drawer breaks hook order
   const [confirm, setConfirm] = useState<ConfirmKind | null>(null);
+  const [renaming, setRenaming] = useState(false);
 
   if (!pc || !isOpen) return null;
 
@@ -356,7 +397,17 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
           </section>
         )}
 
-        <div className="pt-2 border-t border-hairline">
+        <div className="pt-2 border-t border-hairline flex flex-col items-start">
+          {onRenamePc && (
+            <button
+              type="button"
+              onClick={() => setRenaming(true)}
+              className={`h-8 px-2 flex items-center gap-2 rounded-sm text-[12px] font-medium text-text-muted hover:text-text-primary hover:bg-surface-3 transition-colors duration-150 ${FOCUS}`}
+            >
+              <PencilLine className="w-3.5 h-3.5" aria-hidden />
+              Ganti nama PC
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setConfirm('delete_pc')}
@@ -367,6 +418,10 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
           </button>
         </div>
       </div>
+
+      {renaming && onRenamePc && (
+        <RenamePcModal pc={pc} onRename={name => onRenamePc(pc, name)} onClose={() => setRenaming(false)} />
+      )}
 
       {confirm && (
         <ConfirmModal

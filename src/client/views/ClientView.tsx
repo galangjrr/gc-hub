@@ -7,7 +7,8 @@ import { ClientTaskManagerModal } from '../components/ClientTaskManagerModal';
 import { ClientSecurityBridge } from '../security/securityBridge';
 import { ProcessWatcherGuard } from '../security/processGuard';
 import { ClientNetworkService } from '../network/clientNetwork';
-import { OpCode, Packet, RemoteCommandPayload, SessionData, KillProcessPayload, AdminAuthResult } from '../../shared/protocol';
+import { OpCode, Packet, RemoteCommandPayload, SessionData, KillProcessPayload, AdminAuthResult, RenamePcPayload, RenamePcResultPayload } from '../../shared/protocol';
+import { pcNameError } from '../../shared/pcName';
 
 import { GCHubDialog, DialogType } from '../components/GCHubDialog';
 import { applyTheme, getTheme, type Theme } from '../../shared/theme';
@@ -446,6 +447,28 @@ export const ClientView: React.FC = () => {
           params: { pid: kill.pid, processName: kill.processName, success: result.success, message: result.message },
         });
         await sendProcessList(true);
+      } else if (action === 'rename_pc') {
+        const { name } = (params || {}) as RenamePcPayload;
+        const reply = (result: RenamePcResultPayload) => ClientNetworkService.send(OpCode.REMOTE_COMMAND, { action: 'rename_pc_result', params: result });
+        const nameError = pcNameError(name);
+        if (nameError) {
+          reply({ name, success: false, message: nameError });
+          return;
+        }
+        const clean = name.trim();
+        // Keep everything else in the config; the live server URL wins over the default a missing file reports
+        const cfg = await api?.getClientConfig?.().catch(() => null);
+        const saved = await api?.saveClientConfig?.({ ...(cfg || {}), serverUrl: ClientNetworkService.getServerUrl(), pcId: clean, pcName: clean }).catch(() => false);
+        if (!saved) {
+          reply({ name, success: false, message: 'File client-config.json gagal ditulis.' });
+          return;
+        }
+        // Answer first: the server must see it before this booth registers under the new name
+        reply({ name, success: true });
+        ClientNetworkService.setWorkstationConfig(clean, clean);
+        setWorkstationInfo(prev => ({ ...prev, pcId: clean, pcName: clean }));
+        setCfgPcId(clean);
+        notify('Nama PC diganti', `Kasir mengganti nama PC ini jadi ${clean}.`, 'info');
       } else if (action === 'restart') {
         notify('PC akan restart', 'Kasir me-restart PC ini.', 'warning');
         setTimeout(async () => {

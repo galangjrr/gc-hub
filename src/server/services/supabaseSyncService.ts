@@ -71,7 +71,8 @@ export interface SessionLogEntry {
 type OutboxItem =
   | { kind: 'log'; payload: Record<string, unknown> }
   | { kind: 'booking_status'; payload: { id: string; status: CloudBooking['status']; cancel_reason?: string } }
-  | { kind: 'booking_pc'; payload: { id: string; pc_id: string } };
+  | { kind: 'booking_pc'; payload: { id: string; pc_id: string } }
+  | { kind: 'pc_rename'; payload: { from: string; to: string; name: string } };
 
 interface InitOptions {
   supabaseUrl?: string;
@@ -128,6 +129,7 @@ export class SupabaseSyncService {
   private static lastPcWrite = new Map<string, { status: string; expected: string | null }>();
   private static executingCommands = new Set<string>();
   private static openBookingsCache: CloudBooking[] = [];
+  private static pendingRenameTargets = new Set<string>();
 
   private static onRemoteCommand?: (cmd: CloudRemoteCommand) => Promise<boolean>;
   private static onBookingActivated?: (booking: CloudBooking) => void;
@@ -284,7 +286,9 @@ export class SupabaseSyncService {
         stoppedEarly = true;
         break;
       }
-      const error = await this.applyOutboxItem({ kind: row.kind, payload: JSON.parse(row.payload) } as OutboxItem);
+      const item = { kind: row.kind, payload: JSON.parse(row.payload) } as OutboxItem;
+      const error = await this.applyOutboxItem(item);
+      if (item.kind === 'pc_rename' && (!error || isPermanentError(error))) this.pendingRenameTargets.delete(item.payload.to);
 
       if (!error) {
         sqlite.prepare('DELETE FROM CloudOutbox WHERE id = ?').run(row.id);
@@ -323,6 +327,15 @@ export class SupabaseSyncService {
       if (item.kind === 'booking_status') {
         const { id, ...fields } = item.payload;
         return (await db.from('bookings').update(fields).eq('id', id)).error;
+      }
+      if (item.kind === 'pc_rename') {
+        // The row keeps its web-side data (photo, specs, maintenance); only its id and name change.
+        // A row already under the new id (pushed before this ran) is a 23505 conflict: dead letter, and
+        // the old row stays for the owner to remove on the web.
+        const { from, to, name } = item.payload;
+        const renamed = await db.from('pcs').update({ id: to, name }).eq('id', from);
+        if (renamed.error) return renamed.error;
+        return (await db.from('bookings').update({ pc_id: to }).eq('pc_id', from).in('status', ['pending', 'active'])).error;
       }
       const { id, pc_id } = item.payload;
       return (await db.from('bookings').update({ pc_id }).eq('id', id)).error;
@@ -382,6 +395,7 @@ export class SupabaseSyncService {
 
     for (const pc of workstations) {
       const id = cloudPcId(pc.name);
+      if (this.pendingRenameTargets.has(id)) continue; // its old row is being renamed, see renamePc
       const cloud = byId.get(id) ?? byId.get(pc.name.trim().toLowerCase());
       const targetId = cloud?.id ?? id;
 
@@ -489,6 +503,17 @@ export class SupabaseSyncService {
     this.enqueue({ kind: 'booking_status', payload: { id: bookingId, status: 'completed' } });
     this.openBookingsCache = this.openBookingsCache.filter(b => b.id !== bookingId);
     return bookingId;
+  }
+
+  /** A PC got a new name: move its cloud row and the open bookings pointing at it. */
+  public static renamePc(oldName: string, newName: string): void {
+    const from = cloudPcId(oldName);
+    const to = cloudPcId(newName);
+    this.openBookingsCache = this.openBookingsCache.map(b => (b.pc_id === from ? { ...b, pc_id: to } : b));
+    if (!this.supabase) return; // local mode: no cloud row to move
+    // Until the rename lands, pushWorkstations must not insert a fresh row under the new id
+    this.pendingRenameTargets.add(to);
+    this.enqueue({ kind: 'pc_rename', payload: { from, to, name: newName } });
   }
 
   public static reassignBooking(bookingId: string, newCloudPcId: string): void {

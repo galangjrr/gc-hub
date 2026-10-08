@@ -121,10 +121,22 @@ export interface CouponRedeemResultPayload {
 
 export interface RemoteCommandPayload {
   action: 'shutdown' | 'restart' | 'lock' | 'unlock' | 'set_volume' | 'capture_screen' | 'screen_capture_response' | 'send_message' | 'broadcast_message' | 'client_chat_reply' | 'wake_on_lan' | 'vnc_signal' | 'remote_mouse_move' | 'remote_mouse_click' | 'remote_mouse_scroll' | 'remote_key_event' | 'remote_key_combo' | 'remote_text_input'
-    | 'fetch_processes' | 'kill_process' | 'sync_catalog'
+    | 'fetch_processes' | 'kill_process' | 'sync_catalog' | 'rename_pc'
     // client -> server
-    | 'telemetry' | 'process_list' | 'kill_process_result';
+    | 'telemetry' | 'process_list' | 'kill_process_result' | 'rename_pc_result';
   params?: any;
+}
+
+/** Server -> client `rename_pc`: the booth saves this as its PC name and registers again under it. */
+export interface RenamePcPayload {
+  name: string;
+}
+
+/** Client -> server `rename_pc_result`, sent before the booth registers under the new name. */
+export interface RenamePcResultPayload {
+  name: string;
+  success: boolean;
+  message?: string;
 }
 
 export interface ScreenCaptureResponsePayload {

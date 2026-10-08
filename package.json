@@ -6,7 +6,7 @@
   "type": "module",
   "main": "dist-electron/main/index.cjs",
   "scripts": {
-    "test": "npm run typecheck && npm run test:personal && npm run test:booking:sql && npm run test:booking:api && npm run test:lan-auth && npm run test:agent-client && npm run test:agent && npm run test:billing:comp && npm run test:member-billing && npm run test:offline && npm run test:password && npm run test:cloud-sync && npm run test:db && npm run test:server:ipc && npm run test:server:login && npm run test:client:kiosk && npm run test:client-config && npm run test:pos && npm run test:billing && npm run test:package-rules && npm run test:billing:rules && npm run test:pos:counter && npm run test:transactions && npm run test:workstations && npm run test:process-scan && npm run test:db:backup && npm run test:db:restore && npm run test:remote && npm run test:shift:voucher && npm run test:e2e && npm run test:smoke && npm run test:sim && npm run test:stress",
+    "test": "npm run typecheck && npm run test:personal && npm run test:booking:sql && npm run test:booking:api && npm run test:lan-auth && npm run test:agent-client && npm run test:agent && npm run test:billing:comp && npm run test:member-billing && npm run test:offline && npm run test:password && npm run test:cloud-sync && npm run test:db && npm run test:server:ipc && npm run test:server:login && npm run test:client:kiosk && npm run test:client-config && npm run test:pos && npm run test:billing && npm run test:package-rules && npm run test:billing:rules && npm run test:pos:counter && npm run test:transactions && npm run test:workstations && npm run test:process-scan && npm run test:db:backup && npm run test:db:restore && npm run test:remote && npm run test:pc-rename && npm run test:shift:voucher && npm run test:e2e && npm run test:smoke && npm run test:sim && npm run test:stress",
     "typecheck": "tsc -p tsconfig.json",
     "dev:server": "vite --config vite.server.config.ts",
     "dev:client": "vite --config vite.client.config.ts",
@@ -37,6 +37,7 @@
     "test:pos": "node scripts/run-electron-test.mjs scripts/test-pos-order.ts",
     "test:pos:counter": "node scripts/run-electron-test.mjs scripts/test-counter-sale.ts",
     "test:remote": "node scripts/run-electron-test.mjs scripts/test-remote-management.ts",
+    "test:pc-rename": "node scripts/run-electron-test.mjs scripts/test-pc-rename.ts",
     "test:shift:voucher": "node scripts/run-electron-test.mjs scripts/test-shift-voucher.ts",
     "test:server:login": "node scripts/run-electron-test.mjs scripts/test-server-login.ts",
     "test:e2e": "node scripts/run-electron-test.mjs scripts/test-e2e-workflow.mjs",
