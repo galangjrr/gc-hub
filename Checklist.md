@@ -1,6 +1,6 @@
 # Checklist GC Hub
 
-Update terakhir: 2026-10-08. Kerjaan bagian 1 ada di branch bertumpuk `fix/offline-stacked-overflow` sampai `fix/ui-data-states`, belum merge ke `main`.
+Update terakhir: 2026-10-08. Kerjaan bagian 1 ada di branch bertumpuk `fix/offline-stacked-overflow` sampai `fix/ui-data-states`, bagian 2 lanjut di atasnya: `fix/client-ipc-admin-gate` lalu `fix/client-notification-window`. Semua belum merge ke `main`.
 
 Persentase di bawah adalah estimasi, bukan hitungan otomatis. Centang item begitu selesai dan terverifikasi, lalu sesuaikan angkanya.
 
@@ -11,7 +11,7 @@ Persentase di bawah adalah estimasi, bukan hitungan otomatis. Centang item begit
 | Server: billing engine | 100% |
 | Server: UI kasir | 100% |
 | Server: POS dan stok | 95% |
-| Client: UI bilik | 95% |
+| Client: UI bilik | 100% |
 | Kontrak server dan client | 90% |
 | Penguncian Windows, gc-agent | 85% |
 | Cloud dan booking | 85% |
@@ -99,7 +99,7 @@ Fitur sekitar 88%. Siap jual ke warnet lain sekitar 62%.
 - [x] Pengaturan bilik, mode teknisi, tutup app lewat verifikasi admin `ADMIN_AUTH`
 - [x] Lockout lokal 5 kali gagal per 60 detik saat offline
 - [x] Saklar kiosk di panel admin bilik
-- [ ] Jendela notifikasi desktop dicek ulang di layar asli setelah pindah ke token
+- [x] Jendela notifikasi desktop pakai token, font Geist, ikon X lucide; klik toast di bilik tidak menarik fokus dari game
 
 ### 2.2 Proteksi di sisi Electron
 
@@ -108,9 +108,10 @@ Fitur sekitar 88%. Siap jual ke warnet lain sekitar 62%.
 - [x] Fokus balik otomatis saat jendela kehilangan fokus
 - [x] Hapus sisa policy HKCU dari build lama saat start
 - [x] Kunci LAN client terenkripsi DPAPI
-- [ ] IPC `client:save-config` dan `client:exit-app` dicek admin di main, sekarang gerbang admin cuma di renderer
-- [ ] IPC `system:apply-policies` dan `security:set-lockdown` divalidasi di main
-- [ ] Hapus `src/client/security/test.ts`, tidak dipakai di mana pun
+- [x] IPC `client:save-config`, `client:exit-app`, provisioning, dan alat teknisi dicek admin di main lewat grant server atau Kunci LAN
+- [x] `system:apply-policies` dihapus karena tidak dipakai, `security:set-lockdown` cuma terima boolean
+- [x] Hapus `src/client/security/test.ts` dan helper renderer lain yang mati
+- [x] Kunci LAN tidak lagi dikirim ke renderer, tanda tangan paket lewat main
 
 ### 2.3 Helper native di `bin/`
 
@@ -159,7 +160,8 @@ Fitur sekitar 88%. Siap jual ke warnet lain sekitar 62%.
 ### 4.3 Merge dan uji
 
 - [ ] Merge `fix/provision-revert` ke `main`
-- [ ] Merge tumpukan bagian 1 berurutan: `fix/offline-stacked-overflow`, `feat/db-restore`, `feat/rename-pc-from-server`, `feat/product-cost`, `fix/ui-data-states`
+- [ ] Merge tumpukan bagian 1 dan 2 berurutan: `fix/offline-stacked-overflow`, `feat/db-restore`, `feat/rename-pc-from-server`, `feat/product-cost`, `fix/ui-data-states`, `fix/client-ipc-admin-gate`, `fix/client-notification-window`
+- [ ] Uji verifikasi admin di bilik asli: online lewat akun admin, offline lewat Kunci LAN, simpan pengaturan, Mode Teknisi, tutup app
 - [ ] Uji rename PC dengan bilik asli, termasuk web booking
 - [ ] Merge `feat/kiosk-switch` ke `main`
 - [ ] Merge `feat/exe-allowlist` ke `main`
