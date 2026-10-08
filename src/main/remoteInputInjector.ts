@@ -96,6 +96,12 @@ export class RemoteInputInjector {
     this.sendCommand(`BOTTOM ${handle}`);
   }
 
+  /** Turns off the Shift x5 Sticky Keys prompt for the logged-in booth user. */
+  public static disableStickyKeysHotkey(): void {
+    if (process.platform !== 'win32') return;
+    this.sendCommand('STICKYOFF');
+  }
+
   public static sendText(text: string): void {
     this.sendCommand(`TEXT ${text}`);
   }
