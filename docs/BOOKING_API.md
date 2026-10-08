@@ -19,6 +19,7 @@ GC Hub Server tidak perlu IP publik atau port forwarding. Billing tetap jalan pe
    - `supabase/migrations/004_booking_api.sql`
    - `supabase/migrations/005_booking_guards.sql` (jika gagal, pesan error berisi query untuk merapikan booking dobel lama)
    - `supabase/migrations/009_webhook_retry.sql` (retry webhook, ikut menyalakan pg_cron kalau tersedia)
+   - `supabase/migrations/010_lock_trigger_functions.sql` (fungsi trigger tidak bisa dipanggil lewat RPC publik)
 3. Aktifkan extension **pg_net** (Database > Extensions) agar webhook terkirim. Tanpa pg_net, booking tetap jalan, hanya webhook yang tidak dikirim. Aktifkan juga **pg_cron** sebelum 009 kalau migration tidak bisa menyalakannya sendiri.
 4. Deploy Edge Function:
    ```bash

@@ -14,7 +14,7 @@ Persentase di bawah adalah estimasi, bukan hitungan otomatis. Centang item begit
 | Client: UI bilik | 100% |
 | Kontrak server dan client | 90% |
 | Penguncian Windows, gc-agent | 90% |
-| Cloud dan booking | 85% |
+| Cloud dan booking | 100% |
 | Siap rilis dan jual | 30% |
 | Uji lapangan | 0% |
 | **Total** | **sekitar 73%** |
@@ -180,7 +180,7 @@ Fitur sekitar 88%. Siap jual ke warnet lain sekitar 62%.
 - [x] Policy public key di web booking dikunci
 - [x] Web booking hidup dengan key baru: dicek 2026-10-08, `/api/data` dan `/api/pcs` jalan, bundle publik cuma berisi `sb_publishable_`
 - [x] `/api/data` publik berhenti mengirim `daily_pdf_revenue`: GC Net Booking `760b259`, live dan dicek 2026-10-08
-- [ ] Webhook booking punya retry: migration `009_webhook_retry.sql` siap dan lulus test, tinggal dijalankan di SQL Editor Supabase
+- [x] Webhook booking punya retry: migration `009_webhook_retry.sql` jalan di prod 2026-10-08, job pg_cron `gchub-webhook-retry` tiap menit
 
 ---
 

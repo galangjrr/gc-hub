@@ -255,6 +255,38 @@ async function run() {
   d3 = (await db4.query(`SELECT * FROM webhook_deliveries WHERE id = $1`, [d3.id])).rows[0];
   assert(d3.status === 'failed' && d3.last_error === 'Endpoint dinonaktifkan', '009: endpoint nonaktif menghentikan retry');
 
+  // 010: fungsi trigger tidak bisa dipanggil anon, tapi trigger tetap jalan untuk anon
+  const db5 = await freshDb();
+  await db5.exec(`
+    CREATE ROLE anon; CREATE ROLE authenticated;
+    CREATE SCHEMA auth;
+    CREATE TABLE auth.users (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), email TEXT, raw_user_meta_data JSONB);
+    CREATE TABLE public.members (id UUID PRIMARY KEY, email TEXT, username TEXT, full_name TEXT, phone TEXT);
+    CREATE FUNCTION public.handle_new_user() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $$
+    DECLARE raw_username TEXT;
+    BEGIN
+      raw_username := COALESCE(new.raw_user_meta_data->>'username', SPLIT_PART(new.email, '@', 1));
+      INSERT INTO public.members (id, email, username, full_name, phone)
+      VALUES (new.id, new.email, raw_username, COALESCE(new.raw_user_meta_data->>'full_name', raw_username), new.raw_user_meta_data->>'phone')
+      ON CONFLICT (id) DO NOTHING;
+      RETURN new;
+    END; $$;
+    CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+    GRANT USAGE ON SCHEMA auth TO anon; GRANT INSERT ON auth.users TO anon;
+    GRANT EXECUTE ON FUNCTION public.handle_new_user() TO anon, authenticated;
+  `);
+  const m010 = readFileSync(new URL('../supabase/migrations/010_lock_trigger_functions.sql', import.meta.url), 'utf8');
+  await db5.exec(m010);
+  await db5.exec(m010); // idempoten, dan fungsi yang tidak ada (bookings_webhook_dispatch) dilewati
+  const priv = (await db5.query(`SELECT has_function_privilege('anon', 'public.handle_new_user()', 'EXECUTE') AS anon_exec,
+    has_function_privilege('authenticated', 'public.handle_new_user()', 'EXECUTE') AS auth_exec,
+    (SELECT proconfig FROM pg_proc WHERE proname = 'handle_new_user') AS cfg`)).rows[0];
+  assert(!priv.anon_exec && !priv.auth_exec, '010: anon dan authenticated tidak bisa EXECUTE fungsi trigger');
+  assert(JSON.stringify(priv.cfg).includes('search_path='), '010: handle_new_user punya search_path tetap');
+  await db5.exec(`SET ROLE anon; INSERT INTO auth.users (email, raw_user_meta_data) VALUES ('budi@example.com', '{"full_name":"Budi"}'); RESET ROLE;`);
+  const member = (await db5.query(`SELECT username, full_name FROM public.members`)).rows[0];
+  assert(member?.username === 'budi' && member?.full_name === 'Budi', '010: signup oleh anon tetap membuat member lewat trigger');
+
   console.log(failed ? `\n${failed} FAILED` : '\nALL PASSED');
   process.exit(failed ? 1 : 0);
 }
