@@ -203,6 +203,43 @@ export class BillingEngine {
   }
 
   /**
+   * Activates the next queued package once the running one is used up, carrying the time used past
+   * its end into the next one. That overflow is up to a second on a normal tick, but can be hours
+   * after reconcileClientSnapshot books time the client used while the server was not counting; it
+   * keeps rolling through the queue until it fits. Returns the package now running, or undefined
+   * when nothing is queued (the caller then applies the cutoff).
+   */
+  public static rollOverStackedPackages(session: ActiveSessionState, now: number): StackedPackageItem | undefined {
+    const queued = () => (session.stackedPackages || []).find(p => p.status === 'Not Used');
+    let next: StackedPackageItem | undefined = queued();
+    if (!next) return undefined;
+
+    let overflowSec = Math.max(0, session.elapsedSeconds - session.initialTotalSeconds);
+    let active = next;
+    while (next) {
+      (session.stackedPackages || []).forEach(p => {
+        if (p.status === 'In Use') p.status = 'Used';
+      });
+      next.status = 'In Use';
+      active = next;
+      const durSec: number = next.minutes * 60;
+      next = overflowSec >= durSec ? queued() : undefined;
+      if (next) overflowSec -= durSec;
+    }
+
+    const durSec = active.minutes * 60;
+    session.initialTotalSeconds = durSec;
+    session.elapsedSeconds = overflowSec;
+    session.remainingSeconds = Math.max(0, durSec - overflowSec);
+    // Elapsed restarts per package, so the pause total of the old one must not carry over: it would
+    // hold the new package's clock at zero for that long.
+    session.startTime = now - overflowSec * 1000;
+    session.pausedDurationMs = 0;
+    session.packageName = active.name;
+    return active;
+  }
+
+  /**
    * 1-Second Authoritative Tick Loop synced to System Wall Clock
    */
   private static tick(shouldPersistDb: boolean = false): void {
@@ -246,23 +283,9 @@ export class BillingEngine {
         // Check if time ran out
         if (session.remainingSeconds <= 0) {
           // Check if there is next stacked package in queue (Not Used)
-          const nextStack = (session.stackedPackages || []).find(p => p.status === 'Not Used');
+          const nextStack = this.rollOverStackedPackages(session, now);
           if (nextStack) {
             console.log(`[BILLING ENGINE] Package on ${pcId} finished. Activating stacked package [${nextStack.name}]...`);
-            
-            // Mark previous active package as Used
-            (session.stackedPackages || []).forEach(p => {
-              if (p.status === 'In Use') p.status = 'Used';
-            });
-            nextStack.status = 'In Use';
-
-            // Switch active session to next package seamlessly
-            const newDurSec = nextStack.minutes * 60;
-            session.initialTotalSeconds = newDurSec;
-            session.remainingSeconds = newDurSec;
-            session.elapsedSeconds = 0;
-            session.startTime = now;
-            session.packageName = nextStack.name;
 
             // Notify client workstation
             ServerNetworkBridge.sendToClient(pcId, OpCode.SESSION_BEGIN, {
@@ -272,9 +295,9 @@ export class BillingEngine {
               userType: session.userType,
               billingType: session.billingType,
               remainingSeconds: session.remainingSeconds,
-              elapsedSeconds: 0,
-              timeRemainingMinutes: nextStack.minutes,
-              timeUsedMinutes: 0,
+              elapsedSeconds: session.elapsedSeconds,
+              timeRemainingMinutes: Math.ceil(session.remainingSeconds / 60),
+              timeUsedMinutes: Math.floor(session.elapsedSeconds / 60),
               totalSpent: session.totalCost,
               moneyUsed: session.totalCost,
               pricePerHour: session.pricePerHour,
@@ -291,7 +314,7 @@ export class BillingEngine {
               username: session.username,
               type: session.billingType,
               remainingSeconds: session.remainingSeconds,
-              elapsedSeconds: 0,
+              elapsedSeconds: session.elapsedSeconds,
               totalCost: session.totalCost,
               pricePerHour: session.pricePerHour,
               packageName: session.packageName
@@ -1248,8 +1271,8 @@ export class BillingEngine {
 
     const offlineSec = Math.floor(snap.elapsedSeconds - session.elapsedSeconds);
     if (offlineSec > 0) {
-      // Geser startTime mundur = elapsed bertambah; tick berikutnya menghitung ulang sisa waktu & auto-cutoff.
-      // ponytail: jika offlineSec melebihi sisa paket aktif, kelebihannya tidak memotong paket stacked berikutnya.
+      // Geser startTime mundur = elapsed bertambah; tick berikutnya menghitung ulang sisa waktu, memotong
+      // kelebihan ke paket antrian lewat rollOverStackedPackages, lalu auto-cutoff kalau semua habis.
       session.startTime -= offlineSec * 1000;
       session.elapsedSeconds += offlineSec;
       console.log(`[BILLING ENGINE] ${pcId}: potong ${offlineSec}s pemakaian offline (User: ${session.username}).`);
