@@ -309,6 +309,8 @@ async function createWindow() {
     mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     SecurityManager.init(mainWindow);
     SecurityManager.setLockdownMode(true);
+    // Booth user's own setting: only the installed client, never a dev run or a test harness
+    if (app.isPackaged) RemoteInputInjector.disableStickyKeysHotkey();
 
     // Clicking the widget or Alt+Tab activates and raises it; push it back under everything
     mainWindow.on('focus', () => {

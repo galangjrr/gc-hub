@@ -19,6 +19,7 @@
 //	COMBO vk vk ...    press all down then release in reverse (e.g. Ctrl+Alt+Del assist)
 //	BOTTOM hwnd        send a window to the bottom of the z-order (the floating widget)
 //	TEXT ...           type the rest of the line as Unicode text
+//	STICKYOFF          turn off the Shift x5 Sticky Keys shortcut for this user
 package main
 
 import (
@@ -27,6 +28,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
@@ -45,6 +47,12 @@ const (
 
 	swNoMoveSizeNoActivate = 0x0001 | 0x0002 | 0x0010
 	hwndBottom             = 1
+
+	spiGetStickyKeys  = 0x003A
+	spiSetStickyKeys  = 0x003B
+	skfHotkeyActive   = 0x0004
+	spifUpdateIniFile = 0x0001
+	spifSendChange    = 0x0002
 )
 
 var (
@@ -53,6 +61,7 @@ var (
 	procMouseEvent   = user32.NewProc("mouse_event")
 	procKeybdEvent   = user32.NewProc("keybd_event")
 	procSetWindowPos = user32.NewProc("SetWindowPos")
+	procSysParamInfo = user32.NewProc("SystemParametersInfoW")
 )
 
 func main() {
@@ -110,7 +119,25 @@ func handle(line string) {
 		if len(line) > 5 {
 			typeText(line[5:])
 		}
+	case "STICKYOFF":
+		disableStickyKeysHotkey()
 	}
+}
+
+// disableStickyKeysHotkey clears the Shift x5 shortcut that pops the Sticky Keys prompt over a game.
+// It runs here, in the booth user's own session, so it changes that user's setting only, applies
+// at once, and persists to their profile. Every other Sticky Keys flag is left as it was.
+func disableStickyKeysHotkey() {
+	sk := struct{ size, flags uint32 }{}
+	sk.size = uint32(unsafe.Sizeof(sk))
+	if r, _, _ := procSysParamInfo.Call(spiGetStickyKeys, uintptr(sk.size), uintptr(unsafe.Pointer(&sk)), 0); r == 0 {
+		return
+	}
+	if sk.flags&skfHotkeyActive == 0 {
+		return
+	}
+	sk.flags &^= skfHotkeyActive
+	procSysParamInfo.Call(spiSetStickyKeys, uintptr(sk.size), uintptr(unsafe.Pointer(&sk)), spifUpdateIniFile|spifSendChange)
 }
 
 func mouseButton(btn string, down bool) {
