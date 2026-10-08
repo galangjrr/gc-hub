@@ -72,8 +72,11 @@ import { SessionCleanupService } from './cleanup';
 import { SupabaseSyncService, cloudPcId, localPcName, type CloudBooking, type CloudRemoteCommand } from '../server/services/supabaseSyncService';
 import { WindowsProvisioner } from './windowsProvisioner';
 import { RemoteInputInjector } from './remoteInputInjector';
-import { OpCode, AuthPayload, ClientRegisterPayload, type SessionUserType, type SessionBillingType, type AdminAuthResult } from '../shared/protocol';
+import { OpCode, AuthPayload, ClientRegisterPayload, type SessionUserType, type SessionBillingType, type AdminAuthRequest, type AdminAuthResult, type Packet } from '../shared/protocol';
+import { signAdminGrant, signPacket, verifyPacket } from '../shared/lanAuth';
 import { initPcRename, requestPcRename } from '../server/network/pcRename';
+import { pcNameError } from '../shared/pcName';
+import { ClientAdminGate } from './clientAdminGate';
 import { TelemetryService } from './telemetry';
 import { startDailyBackup, backupDatabase, listBackups, stageRestore, BACKUP_DIR } from '../server/db';
 
@@ -519,20 +522,25 @@ function setupServerNetworkHandlers() {
 
   // 0. Admin check for admin-only actions on a booth PC (settings, technician mode, exit). Admin role only,
   // same rule as server settings; never starts a session.
-  ServerNetworkBridge.on(OpCode.ADMIN_AUTH, (client, packet) => {
+  // The reply carries a grant over the booth's nonce so the booth's main process, not just its UI, knows an admin logged in.
+  ServerNetworkBridge.on(OpCode.ADMIN_AUTH, async (client, packet) => {
     const reply = (result: AdminAuthResult) => ServerNetworkBridge.sendToClient(client.pcId, OpCode.ADMIN_AUTH, result);
     if (isAuthLocked(client.pcId)) {
       return reply({ success: false, message: 'Terlalu banyak percobaan gagal. Coba lagi dalam 1 menit.' });
     }
-    const { username = '', password = '' } = (packet.payload || {}) as { username?: string; password?: string };
+    const { username = '', password = '', nonce } = (packet.payload || {}) as Partial<AdminAuthRequest>;
     const admin = DbService.verifyAdminLogin({ username, password });
     if (!admin.success || !admin.employee) {
       registerAuthFailure(client.pcId);
       return reply({ success: false, message: admin.message });
     }
     authFailures.delete(client.pcId);
+    const lanSecret = DbService.getSetting('lan_secret');
+    if (typeof nonce !== 'string' || !/^[0-9a-f]{32}$/.test(nonce) || !lanSecret) {
+      return reply({ success: false, message: 'Versi aplikasi bilik tidak cocok dengan server. Perbarui aplikasi bilik.' });
+    }
     console.log(`[AUTH] Booth settings opened on ${client.pcId} by ${admin.employee.name}`);
-    reply({ success: true });
+    reply({ success: true, grant: await signAdminGrant(lanSecret, nonce) });
   });
 
   // 1. Client Login Request
@@ -894,12 +902,59 @@ function getClientConfigPath(): string {
   return path.join(baseDir, 'client-config.json');
 }
 
-ipcMain.handle('client:get-config', () => {
+// Booth LAN key: decrypted only in this process. The renderer signs and checks packets through
+// lan:sign and lan:verify and only learns whether a key is set, so code running in the UI cannot
+// read the key and pass the admin check below on its own.
+let clientLanSecret: string | null = null;
+
+function readClientConfig(): Record<string, unknown> {
   const configPath = getClientConfigPath();
+  const config = fs.existsSync(configPath) ? loadClientConfig(configPath) : {};
+  clientLanSecret = typeof config.lanSecret === 'string' ? config.lanSecret : '';
+  return config;
+}
+
+function getClientLanSecret(): string {
+  if (clientLanSecret === null) {
+    try {
+      readClientConfig();
+    } catch (err) {
+      console.warn('[CLIENT CONFIG] Failed to read client-config.json:', err);
+      clientLanSecret = '';
+    }
+  }
+  return clientLanSecret ?? '';
+}
+
+function writeClientConfig(config: Record<string, unknown>): void {
+  saveClientConfig(getClientConfigPath(), config);
+  clientLanSecret = typeof config.lanSecret === 'string' ? config.lanSecret.trim() : '';
+}
+
+// A broken file must not lock the admin out of fixing it from booth settings
+function readClientConfigOrEmpty(): Record<string, unknown> {
   try {
-    if (fs.existsSync(configPath)) {
-      return loadClientConfig(configPath);
-    } else {
+    return readClientConfig();
+  } catch (err) {
+    console.warn('[CLIENT CONFIG] Failed to read client-config.json, starting from empty:', err);
+    return {};
+  }
+}
+
+const boothAdmin = new ClientAdminGate();
+
+// Booth admin actions. A booth without a LAN key has nothing to check an admin against (and cannot reach
+// the server either), so first setup stays open, same as the booth UI.
+function denyUnlessBoothAdmin(action: string): { success: false; message: string } | null {
+  if (isServerMode || !getClientLanSecret() || boothAdmin.isGranted()) return null;
+  console.warn(`[AUTH] Ditolak di bilik: ${action} tanpa verifikasi admin`);
+  return { success: false, message: `Butuh verifikasi admin untuk ${action}.` };
+}
+
+ipcMain.handle('client:get-config', () => {
+  if (isServerMode) return null;
+  try {
+    if (!fs.existsSync(getClientConfigPath())) {
       // No pcId on purpose: the client falls back to the Windows computer name.
       const defaultConfig = {
         serverIp: '127.0.0.1',
@@ -907,30 +962,110 @@ ipcMain.handle('client:get-config', () => {
         serverUrl: 'ws://127.0.0.1:7894'
       };
       try {
-        fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2), 'utf8');
+        fs.writeFileSync(getClientConfigPath(), JSON.stringify(defaultConfig, null, 2), 'utf8');
       } catch (e) {}
-      return defaultConfig;
     }
+    const { lanSecret: _key, ...config } = readClientConfig();
+    return { ...config, hasLanSecret: !!clientLanSecret };
   } catch (err) {
     console.warn('[CLIENT CONFIG] Failed to read client-config.json:', err);
   }
   return null;
 });
 
-ipcMain.handle('client:save-config', (_event, config) => {
-  const configPath = getClientConfigPath();
+// Booth settings form: server address, manual PC name (empty = Windows computer name), LAN key (empty = keep).
+ipcMain.handle('client:save-config', (_event, input: unknown) => {
+  if (isServerMode) return { success: false, message: 'Hanya untuk aplikasi bilik.' };
+  const denied = denyUnlessBoothAdmin('mengubah pengaturan bilik');
+  if (denied) return denied;
+  const { serverUrl, pcId, lanSecret } = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
+  let url: URL;
   try {
-    saveClientConfig(configPath, config);
-    return true;
+    url = new URL(String(serverUrl));
+  } catch {
+    return { success: false, message: 'Alamat server tidak valid.' };
+  }
+  if ((url.protocol !== 'ws:' && url.protocol !== 'wss:') || !url.hostname || url.pathname !== '/' || url.search || url.username) {
+    return { success: false, message: 'Alamat server tidak valid. Contoh: 192.168.1.10' };
+  }
+  const name = typeof pcId === 'string' ? pcId.trim() : '';
+  const nameError = name ? pcNameError(name) : null;
+  if (nameError) return { success: false, message: nameError };
+  if (lanSecret !== undefined && (typeof lanSecret !== 'string' || lanSecret.length > 256)) {
+    return { success: false, message: 'Kunci LAN tidak valid.' };
+  }
+
+  const { pcId: _oldId, pcName: _oldName, ...current } = readClientConfigOrEmpty();
+  const newKey = typeof lanSecret === 'string' ? lanSecret.trim() : '';
+  try {
+    writeClientConfig({
+      ...current,
+      serverIp: url.hostname,
+      serverPort: Number(url.port) || 7894,
+      serverUrl: `${url.protocol}//${url.host}`,
+      ...(name ? { pcId: name, pcName: name } : {}),
+      lanSecret: newKey || current.lanSecret,
+    });
+    return { success: true };
   } catch (err) {
     console.error('[CLIENT CONFIG] Failed to write client-config.json:', err);
-    return false;
+    return { success: false, message: 'File client-config.json gagal ditulis.' };
+  }
+});
+
+// Rename pushed by the cashier (rename_pc). Not admin-gated: the name is only this booth's label on the LAN,
+// which the UI can already change in memory; the server address and LAN key are left alone.
+ipcMain.handle('client:set-pc-name', (_event, input: unknown) => {
+  if (isServerMode) return { success: false, message: 'Hanya untuk aplikasi bilik.' };
+  const nameError = pcNameError(input);
+  if (nameError) return { success: false, message: nameError };
+  const name = (input as string).trim();
+  try {
+    writeClientConfig({ ...readClientConfigOrEmpty(), pcId: name, pcName: name });
+    return { success: true };
+  } catch (err) {
+    console.error('[CLIENT CONFIG] Failed to write client-config.json:', err);
+    return { success: false, message: 'File client-config.json gagal ditulis.' };
   }
 });
 
 ipcMain.handle('client:exit-app', () => {
+  const denied = denyUnlessBoothAdmin('menutup aplikasi bilik');
+  if (denied) return denied;
   app.quit();
   return true;
+});
+
+ipcMain.handle('client:admin-challenge', () => (isServerMode ? null : boothAdmin.challenge()));
+
+ipcMain.handle('client:admin-grant', (_event, grant: unknown) => {
+  if (isServerMode) return { success: false, message: 'Hanya untuk aplikasi bilik.' };
+  return boothAdmin.acceptServerGrant(getClientLanSecret(), grant);
+});
+
+ipcMain.handle('client:admin-lan-key', (_event, key: unknown) => {
+  if (isServerMode) return { success: false, message: 'Hanya untuk aplikasi bilik.' };
+  return boothAdmin.checkLanKey(getClientLanSecret(), key);
+});
+
+ipcMain.handle('client:admin-end', () => {
+  boothAdmin.revoke();
+  return true;
+});
+
+const OPCODES = new Set<string>(Object.values(OpCode));
+
+// Only real packets get signed: the op must be an OpCode, which keeps this from producing an admin grant
+ipcMain.handle('lan:sign', async (_event, packet: Packet) => {
+  if (isServerMode || !packet || typeof packet !== 'object' || !OPCODES.has(packet.op) || typeof packet.ts !== 'number') return null;
+  const secret = getClientLanSecret();
+  return secret ? signPacket(secret, packet) : packet;
+});
+
+ipcMain.handle('lan:verify', async (_event, packet: Packet) => {
+  if (isServerMode) return false;
+  const secret = getClientLanSecret();
+  return !secret || verifyPacket(secret, packet);
 });
 
 // Operator logged in on this server console. Set only by a verified login, first-admin setup
@@ -995,11 +1130,6 @@ ipcMain.handle('system:kill-process', async (_event, { pid, processName, isClien
   return await SystemService.killProcess(pid, processName, isClientRequest);
 });
 
-ipcMain.handle('system:apply-policies', (_event, enable: boolean) => {
-  SystemService.applySecurityPolicies(enable);
-  return true;
-});
-
 ipcMain.handle('system:wake-on-lan', async (_event, { mac, ip }: { mac: string; ip?: string }) => {
   return await SystemService.sendWakeOnLan(mac, ip);
 });
@@ -1012,8 +1142,9 @@ ipcMain.handle('system:get-telemetry', async (_event, pcId?: string) => {
   return await TelemetryService.getTelemetrySnapshot(pcId || 'PC-01');
 });
 
-ipcMain.handle('security:set-lockdown', (_event, locked: boolean, isAdmin?: boolean) => {
-  SecurityManager.setLockdownMode(locked, isAdmin ?? false);
+ipcMain.handle('security:set-lockdown', (_event, locked: unknown) => {
+  if (isServerMode || typeof locked !== 'boolean') return false;
+  SecurityManager.setLockdownMode(locked);
   return true;
 });
 
@@ -1044,15 +1175,16 @@ ipcMain.handle('system:get-provision-status', async () => {
 });
 
 ipcMain.handle('system:provision-client', async () => {
-  return await WindowsProvisioner.provisionClient();
+  return denyUnlessBoothAdmin('menjalankan 1-Click Setup') ?? await WindowsProvisioner.provisionClient();
 });
 
 ipcMain.handle('system:revert-provision', async () => {
-  return await WindowsProvisioner.revertClient();
+  return denyUnlessBoothAdmin('revert konfigurasi Windows') ?? await WindowsProvisioner.revertClient();
 });
 
+// Technician mode tools on a booth
 ipcMain.handle('system:open-admin-tool', async (_event, toolName: 'sound' | 'settings' | 'devmgmt' | 'network' | 'taskmgr') => {
-  if (process.platform !== 'win32') return false;
+  if (process.platform !== 'win32' || denyUnlessBoothAdmin('membuka alat teknisi')) return false;
   const { exec } = require('child_process');
   const { shell } = require('electron');
   try {

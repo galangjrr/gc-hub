@@ -18,7 +18,6 @@ function getGlobalShortcut() {
  */
 export class SecurityManager {
   private static isLocked = false;
-  private static isAdminMode = false;
   private static guardIntervalId: NodeJS.Timeout | null = null;
   private static targetWindow: BrowserWindow | null = null;
 
@@ -49,9 +48,9 @@ export class SecurityManager {
 
     // Refocus immediately if focus is lost (e.g. Task View / Win+Tab attempts)
     window.on('blur', () => {
-      if (this.isLocked && !this.isAdminMode && !this.isDevEnvironment()) {
+      if (this.isLocked && !this.isDevEnvironment()) {
         setTimeout(() => {
-          if (this.isLocked && !this.isAdminMode && this.targetWindow && !this.targetWindow.isDestroyed()) {
+          if (this.isLocked && this.targetWindow && !this.targetWindow.isDestroyed()) {
             this.targetWindow.focus();
           }
         }, 40);
@@ -63,13 +62,12 @@ export class SecurityManager {
   }
 
   /**
-   * Set Lockdown Mode: true = Kiosk Lockscreen, false = In-Session Overlay Widget / Admin Mode
+   * Set Lockdown Mode: true = Kiosk Lockscreen, false = In-Session Overlay Widget
    */
-  public static setLockdownMode(locked: boolean, isAdminSession: boolean = false): void {
+  public static setLockdownMode(locked: boolean): void {
     this.isLocked = locked;
-    this.isAdminMode = isAdminSession;
 
-    if (this.isDevEnvironment() || isAdminSession || !locked) {
+    if (this.isDevEnvironment() || !locked) {
       this.stopRestrictedProcessKiller();
       this.unregisterGlobalShortcuts();
       this.syncAgentPolicy(false);
@@ -95,7 +93,7 @@ export class SecurityManager {
   }
 
   public static isSystemLocked(): boolean {
-    return this.isLocked && !this.isAdminMode;
+    return this.isLocked;
   }
 
   /**
@@ -103,7 +101,7 @@ export class SecurityManager {
    */
   private static setupInputInterceptor(win: BrowserWindow): void {
     win.webContents.on('before-input-event', (event, input) => {
-      if (!this.isLocked || this.isAdminMode || this.isDevEnvironment()) return;
+      if (!this.isLocked || this.isDevEnvironment()) return;
 
       const key = input.key.toLowerCase();
       const code = input.code ? input.code.toLowerCase() : '';
@@ -142,7 +140,7 @@ export class SecurityManager {
    * Global shortcuts fallback
    */
   private static registerGlobalShortcuts(): void {
-    if (this.isDevEnvironment() || this.isAdminMode) return;
+    if (this.isDevEnvironment()) return;
     const gs = getGlobalShortcut();
     if (!gs) return;
     try {
@@ -191,12 +189,12 @@ export class SecurityManager {
    * Start background process killer for restricted tools ONLY while locked in production
    */
   public static startRestrictedProcessKiller(): void {
-    if (this.guardIntervalId || this.isDevEnvironment() || this.isAdminMode) return;
+    if (this.guardIntervalId || this.isDevEnvironment()) return;
 
     // Satu proses taskkill untuk semua nama (/IM bisa diulang), bukan satu spawn per nama tiap tick
     const args = ['/F', '/T', ...this.RESTRICTED_PROCESSES_LOCKSCREEN.flatMap(name => ['/IM', name])];
     this.guardIntervalId = setInterval(() => {
-      if (!this.isLocked || this.isAdminMode || this.isDevEnvironment()) return;
+      if (!this.isLocked || this.isDevEnvironment()) return;
       execFile('taskkill', args, { windowsHide: true }, () => {});
     }, 1000);
   }

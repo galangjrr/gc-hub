@@ -13,7 +13,7 @@ import net from 'net';
 const PIPE_PATH = process.env.GC_AGENT_PIPE || '\\\\.\\pipe\\gc-hub-agent';
 const TIMEOUT_MS = 3000;
 
-// Matches SecurityPolicyConfig in src/client/security/registryPolicy.ts and PolicyConfig in the agent.
+// Matches PolicyConfig in agent/policy_windows.go.
 export interface KioskPolicy {
   disableTaskMgr: boolean;
   disableControlPanel: boolean;

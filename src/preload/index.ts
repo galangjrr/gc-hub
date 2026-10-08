@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { OpCode } from '../shared/protocol';
+import { OpCode, type Packet } from '../shared/protocol';
 
 // Expose safe API to renderer
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -12,7 +12,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   logoutAndExitServer: (operatorName: string) => ipcRenderer.invoke('server:logout-and-exit', operatorName),
   getClientConfig: () => ipcRenderer.invoke('client:get-config'),
   getMachineInfo: () => ipcRenderer.invoke('client:get-machine-info'),
-  saveClientConfig: (config: any) => ipcRenderer.invoke('client:save-config', config),
+  saveClientConfig: (config: { serverUrl: string; pcId?: string; lanSecret?: string }) => ipcRenderer.invoke('client:save-config', config),
+  setPcName: (name: string) => ipcRenderer.invoke('client:set-pc-name', name),
+  beginAdminAuth: () => ipcRenderer.invoke('client:admin-challenge'),
+  confirmAdminGrant: (grant?: string) => ipcRenderer.invoke('client:admin-grant', grant),
+  verifyAdminLanKey: (key: string) => ipcRenderer.invoke('client:admin-lan-key', key),
+  endAdminGrant: () => ipcRenderer.invoke('client:admin-end'),
+  lanSign: (packet: Packet) => ipcRenderer.invoke('lan:sign', packet),
+  lanVerify: (packet: Packet) => ipcRenderer.invoke('lan:verify', packet),
   minimizeWindow: () => ipcRenderer.invoke('window:minimize'),
   maximizeWindow: () => ipcRenderer.invoke('window:maximize'),
   closeWindow: () => ipcRenderer.invoke('window:close'),
@@ -23,8 +30,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Native Process & Security APIs
   getRunningProcesses: (includeSystem?: boolean) => ipcRenderer.invoke('system:get-running-processes', includeSystem),
   killProcess: (pid: number, processName: string, isClientRequest?: boolean) => ipcRenderer.invoke('system:kill-process', { pid, processName, isClientRequest }),
-  applySecurityPolicies: (enable: boolean) => ipcRenderer.invoke('system:apply-policies', enable),
-  setLockdownMode: (locked: boolean, isAdmin?: boolean) => ipcRenderer.invoke('security:set-lockdown', locked, isAdmin),
+  setLockdownMode: (locked: boolean) => ipcRenderer.invoke('security:set-lockdown', locked),
   cleanupSession: () => ipcRenderer.invoke('client:cleanup-session'),
   getTelemetry: (pcId?: string) => ipcRenderer.invoke('system:get-telemetry', pcId),
   resetAudioVolume: (volume?: number) => ipcRenderer.invoke('system:reset-audio', volume),

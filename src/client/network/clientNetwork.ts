@@ -1,7 +1,10 @@
 import { OpCode, Packet, ClientRegisterPayload, ClientSessionSnapshot } from '../../shared/protocol';
-import { signPacket, verifyPacket } from '../../shared/lanAuth';
 
 const SNAPSHOT_KEY = 'gchub_session_snapshot';
+
+// The LAN key never reaches the renderer: main signs outgoing packets and checks incoming ones.
+// Without Electron (browser preview) there is no key, so packets go unsigned.
+const lanApi = () => (typeof window !== 'undefined' ? (window as any).electronAPI : undefined);
 
 export type PacketHandler = (packet: Packet) => void;
 export type ConnectionStateListener = (connected: boolean) => void;
@@ -10,14 +13,9 @@ export class ClientNetworkService {
   private static ws: WebSocket | null = null;
   private static serverUrl: string = (typeof window !== 'undefined' && window.localStorage?.getItem('gchub_server_url')) || 'ws://localhost:7894';
   private static isConnected: boolean = false;
-  private static lanSecret: string = '';
   private static outQueue: Promise<void> = Promise.resolve();
   private static inQueue: Promise<void> = Promise.resolve();
 
-  /** Kunci LAN dari client-config.json. Jika diisi, paket dari server yang tidak bertanda tangan valid dibuang. */
-  public static setLanSecret(secret: string): void {
-    this.lanSecret = (secret || '').trim();
-  }
   private static heartbeatInterval: any = null;
   private static listeners: Map<OpCode, PacketHandler[]> = new Map();
   private static connectionListeners: ConnectionStateListener[] = [];
@@ -153,7 +151,8 @@ export class ClientNetworkService {
           return;
         }
         this.inQueue = this.inQueue.then(async () => {
-          if (this.lanSecret && !(await verifyPacket(this.lanSecret, packet))) {
+          const api = lanApi();
+          if (api?.lanVerify && !(await api.lanVerify(packet))) {
             console.warn(`[CLIENT NETWORK] Paket ${packet.op} dibuang: tanda tangan server tidak valid.`);
             return;
           }
@@ -201,7 +200,9 @@ export class ClientNetworkService {
     };
 
     this.outQueue = this.outQueue.then(async () => {
-      const signed = this.lanSecret ? await signPacket(this.lanSecret, packet) : packet;
+      const api = lanApi();
+      const signed = api?.lanSign ? await api.lanSign(packet) : packet;
+      if (!signed) throw new Error(`main menolak menandatangani ${op}`);
       if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(signed));
     }).catch(e => console.error('[CLIENT NETWORK] Gagal mengirim paket:', e));
   }
